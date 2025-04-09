@@ -1,0 +1,5 @@
+Implement Memory and get it to load a rom correctly [DONE]
+
+Set up a Hex Dump in Memory (to dump memory contents) [DONE]
+
+Begin CPU implementation [in progress]
