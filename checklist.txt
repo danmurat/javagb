@@ -1,5 +1,6 @@
-Implement Memory and get it to load a rom correctly [DONE]
+Figure out how the program counter should be changed [DONE]
+- the program counter is incremented by the amount of bytes an instruction takes
+- if ld_n_nn = 3 bytes then we will pc += 3, etc..
 
-Set up a Hex Dump in Memory (to dump memory contents) [DONE]
 
-Begin CPU implementation [in progress]
+Implement LD instructions [in progress]

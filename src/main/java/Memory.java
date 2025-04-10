@@ -12,7 +12,7 @@ import java.io.IOException;
 public class Memory
 {
     private static final String ROM_PATH = "roms/";
-    private final CPU cpu;
+    private CPU cpu;
 
                                         // TODO: change back to 0x8000. But the rom files are bigger than this??
     private final short[] romData = new short[0x10000]; // load rom data here (holds both banks)
@@ -58,12 +58,20 @@ public class Memory
      * Constructs and sets everything we need up.
      * TODO: think about loading rom inside here?
      */
-    public Memory(final CPU cpu, final String romName) throws IOException // handle this..
+    public Memory(final String romName) throws IOException // handle this..
     {
-        this.cpu = cpu;
+        //this.cpu = cpu;
         loadRom(romName); // romData filled
     }
 
+    /**
+     * Memory and CPU both require eachother, but 1 is created before the other, so here we set the cpu
+     * after the CPU is subsequently created
+     * @param cpu The cpu object
+     */
+    public void setCPU(CPU cpu) {
+        this.cpu = cpu;
+    }
 
     /**
      * Reads 16bit info from somewhere...
@@ -284,6 +292,32 @@ public class Memory
         }
     }
 
+    /**
+     * Since we have some instruction that read/write 16bits, we create a method to read/write words.
+     * <br><br>
+     * NOTE: the GameBoy is a little-endian system. So the lower memory address is the least significant byte
+     * (the right-most). So we bit shift the value at the next address to the left by 8.
+     *
+     * @param address the primary address to access
+     * @return word
+     */
+    public int readWord(final int address) {
+        // little endian
+        return readByte(address) | (readByte(address+1) << 8);
+    }
+
+    /**
+     * Follows same concept as readWord, but for writing.
+     * @param address the primary address access
+     * @param value the value we want to write
+     */
+    public void writeWord(final int address, final int value) {
+        int value1 = 0x00FF & value;        // least significant byte only
+        int value2 = (0xFF00 & value) >> 8; // most significant byte, then bit shifted to become an actual byte
+        writeByte(address, (short)value1);
+        writeByte(address+1, (short)value2);
+    }
+
 
     /**
      * Helps with testing. <br>
@@ -336,21 +370,17 @@ public class Memory
      * Dumps data from rom file into our array
      * @param romName the name of our rom we run
      */
-    private void loadRom(String romName) throws IOException {
-        // TODO: this
-        // load the ROM_PATH + romName
-        // and dump contents into romData
-
+    private void loadRom(String romName) throws IOException
+    {
         FileInputStream romFile = new FileInputStream(ROM_PATH + romName);
         int addressCounter = 0;
         while (romFile.available() > 0)
         {
-            // casting to byte should still give same value (just want to limit the range)
             romData[addressCounter++] = (short)romFile.read();
 
             if (addressCounter == romData.length)
             {
-                romFile.close();
+                romFile.close(); // TODO: we may be closing this too early? Roms can have more data in them than total mem size
                 break;
             }
         }
