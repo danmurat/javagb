@@ -171,390 +171,150 @@ public class CPU {
 
         switch (opcode) {
             // --- ROW 0 ---
-            case 0x00:
-                PC += 1; // nop literally does nothing but this,
+            case 0x00 -> { // nop literally does nothing but this,
                 totalMCycles += 1;
-                break;
-            case 0x01:
-                ld_r16_n16("BC"); // TODO: in future check this string passing doesn't affect performance too much
-                break;
-            case 0x02:
-                ld_pr16_a("BC");
-                break;
-            case 0x03:
-                inc_r16("BC");
-                break;
-            case 0x04:
-                inc_r8('B');
-                break;
-            case 0x05:
-                dec_r8('B');
-                break;
-            case 0x06:
-                ld_r8_n8('B');
-                break;
-            case 0x0A:
-                ld_a_pr16("BC");
-                break;
-            case 0x0B:
-                dec_r16("BC");
-                break;
-            case 0x0C:
-                inc_r8('C');
-                break;
-            case 0x0D:
-                dec_r8('C');
-                break;
-            case 0x0E:
-                ld_r8_n8('C');
-                break;
+                PC += 1;
+            }
+            case 0x01 -> ld_r16_n16("BC"); // TODO: in future check this string passing doesn't affect performance too much
+            case 0x02 -> ld_pr16_a("BC");
+            case 0x03 -> inc_r16("BC");
+            case 0x04 -> inc_r8('B');
+            case 0x05 -> dec_r8('B');
+            case 0x06 -> ld_r8_n8('B');
+            case 0x0A -> ld_a_pr16("BC");
+            case 0x0B -> dec_r16("BC");
+            case 0x0C -> inc_r8('C');
+            case 0x0D -> dec_r8('C');
+            case 0x0E -> ld_r8_n8('C');
 
             // --- ROW 1 ---
-            case 0x10:
-                System.out.println("STOP INSTRUCTION");
-                break;
-            case 0x11:
-                ld_r16_n16("DE");
-                break;
-            case 0x12:
-                ld_pr16_a("DE");
-                break;
-            case 0x13:
-                inc_r16("DE");
-                break;
-            case 0x14:
-                inc_r8('D');
-                break;
-            case 0x15:
-                dec_r8('D');
-                break;
-            case 0x16:
-                ld_r8_n8('D');
-                break;
-            case 0x1A:
-                ld_a_pr16("DE");
-                break;
-            case 0x1B:
-                dec_r16("DE");
-                break;
-            case 0x1C:
-                inc_r8('E');
-                break;
-            case 0x1D:
-                dec_r8('E');
-                break;
-            case 0x1E:
-                ld_r8_n8('E');
-                break;
+            case 0x10 -> System.out.println("STOP INSTRUCTION");
+            case 0x11 -> ld_r16_n16("DE");
+            case 0x12 -> ld_pr16_a("DE");
+            case 0x13 -> inc_r16("DE");
+            case 0x14 -> inc_r8('D');
+            case 0x15 -> dec_r8('D');
+            case 0x16 -> ld_r8_n8('D');
+            case 0x1A -> ld_a_pr16("DE");
+            case 0x1B -> dec_r16("DE");
+            case 0x1C -> inc_r8('E');
+            case 0x1D -> dec_r8('E');
+            case 0x1E -> ld_r8_n8('E');
 
             //--- ROW 2 ---
-            case 0x20:
-                System.out.println("JR instruction"); // TODO
-                break;
-            case 0x21:
-                ld_r16_n16("HL");
-                break;
-            case 0x22:
-                ld_pr16_a("HL+");
-                break;
-            case 0x23:
-                inc_r16("HL");
-                break;
-            case 0x24:
-                inc_r8('H');
-                break;
-            case 0x25:
-                dec_r8('H');
-                break;
-            case 0x26:
-                ld_r8_n8('H');
-                break;
-            case 0x2A:
-                ld_a_pr16("HL+");
-                break;
-            case 0x2B:
-                dec_r16("HL");
-                break;
-            case 0x2C:
-                inc_r8('L');
-                break;
-            case 0x2D:
-                dec_r8('L');
-                break;
-            case 0x2E:
-                ld_r8_n8('L');
-                break;
+            case 0x20 -> System.out.println("JR instruction"); // TODO
+            case 0x21 -> ld_r16_n16("HL");
+            case 0x22 -> ld_pr16_a("HL+");
+            case 0x23 -> inc_r16("HL");
+            case 0x24 -> inc_r8('H');
+            case 0x25 -> dec_r8('H');
+            case 0x26 -> ld_r8_n8('H');
+            case 0x2A -> ld_a_pr16("HL+");
+            case 0x2B -> dec_r16("HL");
+            case 0x2C -> inc_r8('L');
+            case 0x2D -> dec_r8('L');
+            case 0x2E -> ld_r8_n8('L');
 
             // --- ROW 3 ---
-            case 0x30:
-                System.out.println("JR instruction");
-                break;
-            case 0x31:
-                ld_r16_n16("SP");
-                break;
-            case 0x32:
-                ld_pr16_a("HL-");
-                break;
-            case 0x33:
-                inc_r16("SP");
-                break;
-            case 0x34:
-                inc_phl();
-                break;
-            case 0x35:
-                dec_phl();
-                break;
-            case 0x36:
-                ld_phl_n8();
-                break;
-            case 0x3A:
-                ld_a_pr16("HL-");
-                break;
-            case 0x3B:
-                dec_r16("SP");
-                break;
-            case 0x3C:
-                inc_r8('A');
-                break;
-            case 0x3D:
-                dec_r8('A');
-                break;
-            case 0x3E:
-                ld_r8_n8('A');
-                break;
+            case 0x30 -> System.out.println("JR instruction");
+            case 0x31 -> ld_r16_n16("SP");
+            case 0x32 -> ld_pr16_a("HL-");
+            case 0x33 -> inc_r16("SP");
+            case 0x34 -> inc_phl();
+            case 0x35 -> dec_phl();
+            case 0x36 -> ld_phl_n8();
+            case 0x3A -> ld_a_pr16("HL-");
+            case 0x3B -> dec_r16("SP");
+            case 0x3C -> inc_r8('A');
+            case 0x3D -> dec_r8('A');
+            case 0x3E -> ld_r8_n8('A');
 
                 // TODO: ALL 0x..A up to 3A
 
             // --- ROW 4 ---
-            case 0x40:
-                ld_r8_r8('B', 'B');
-                break;
-            case 0x41:
-                ld_r8_r8('B', 'C');
-                break;
-            case 0x42:
-                ld_r8_r8('B', 'D');
-                break;
-            case 0x43:
-                ld_r8_r8('B', 'E');
-                break;
-            case 0x44:
-                ld_r8_r8('B', 'H');
-                break;
-            case 0x45:
-                ld_r8_r8('B', 'L');
-                break;
-            case 0x46:
-                ld_r8_phl('B');
-                break;
-            case 0x47:
-                ld_r8_r8('B', 'A');
-                break;
-            case 0x48:
-                ld_r8_r8('C', 'B');
-                break;
-            case 0x49:
-                ld_r8_r8('C', 'C');
-                break;
-            case 0x4A:
-                ld_r8_r8('C', 'D');
-                break;
-            case 0x4B:
-                ld_r8_r8('C', 'E');
-                break;
-            case 0x4C:
-                ld_r8_r8('C', 'H');
-                break;
-            case 0x4D:
-                ld_r8_r8('C', 'L');
-                break;
-            case 0x4E:
-                ld_r8_phl('C');
-                break;
-            case 0x4F:
-                ld_r8_r8('C', 'A');
-                break;
+            case 0x40 -> ld_r8_r8('B', 'B');
+            case 0x41 -> ld_r8_r8('B', 'C');
+            case 0x42 -> ld_r8_r8('B', 'D');
+            case 0x43 -> ld_r8_r8('B', 'E');
+            case 0x44 -> ld_r8_r8('B', 'H');
+            case 0x45 -> ld_r8_r8('B', 'L');
+            case 0x46 -> ld_r8_phl('B');
+            case 0x47 -> ld_r8_r8('B', 'A');
+            case 0x48 -> ld_r8_r8('C', 'B');
+            case 0x49 -> ld_r8_r8('C', 'C');
+            case 0x4A -> ld_r8_r8('C', 'D');
+            case 0x4B -> ld_r8_r8('C', 'E');
+            case 0x4C -> ld_r8_r8('C', 'H');
+            case 0x4D -> ld_r8_r8('C', 'L');
+            case 0x4E -> ld_r8_phl('C');
+            case 0x4F -> ld_r8_r8('C', 'A');
 
             // --- ROW 5 ---
-            case 0x50:
-                ld_r8_r8('D', 'B');
-                break;
-            case 0x51:
-                ld_r8_r8('D', 'C');
-                break;
-            case 0x52:
-                ld_r8_r8('D', 'D');
-                break;
-            case 0x53:
-                ld_r8_r8('D', 'E');
-                break;
-            case 0x54:
-                ld_r8_r8('D', 'H');
-                break;
-            case 0x55:
-                ld_r8_r8('D', 'L');
-                break;
-            case 0x56:
-                ld_r8_phl('D');
-                break;
-            case 0x57:
-                ld_r8_r8('D', 'A');
-                break;
-            case 0x58:
-                ld_r8_r8('E', 'B');
-                break;
-            case 0x59:
-                ld_r8_r8('E', 'C');
-                break;
-            case 0x5A:
-                ld_r8_r8('E', 'D');
-                break;
-            case 0x5B:
-                ld_r8_r8('E', 'E');
-                break;
-            case 0x5C:
-                ld_r8_r8('E', 'H');
-                break;
-            case 0x5D:
-                ld_r8_r8('E', 'L');
-                break;
-            case 0x5E:
-                ld_r8_phl('E');
-                break;
-            case 0x5F:
-                ld_r8_r8('E', 'A');
-                break;
+            case 0x50 -> ld_r8_r8('D', 'B');
+            case 0x51 -> ld_r8_r8('D', 'C');
+            case 0x52 -> ld_r8_r8('D', 'D');
+            case 0x53 -> ld_r8_r8('D', 'E');
+            case 0x54 -> ld_r8_r8('D', 'H');
+            case 0x55 -> ld_r8_r8('D', 'L');
+            case 0x56 -> ld_r8_phl('D');
+            case 0x57 -> ld_r8_r8('D', 'A');
+            case 0x58 -> ld_r8_r8('E', 'B');
+            case 0x59 -> ld_r8_r8('E', 'C');
+            case 0x5A -> ld_r8_r8('E', 'D');
+            case 0x5B -> ld_r8_r8('E', 'E');
+            case 0x5C -> ld_r8_r8('E', 'H');
+            case 0x5D -> ld_r8_r8('E', 'L');
+            case 0x5E -> ld_r8_phl('E');
+            case 0x5F -> ld_r8_r8('E', 'A');
 
             // --- ROW 6 ---
-            case 0x60:
-                ld_r8_r8('H', 'B');
-                break;
-            case 0x61:
-                ld_r8_r8('H', 'C');
-                break;
-            case 0x62:
-                ld_r8_r8('H', 'D');
-                break;
-            case 0x63:
-                ld_r8_r8('H', 'E');
-                break;
-            case 0x64:
-                ld_r8_r8('H', 'H');
-                break;
-            case 0x65:
-                ld_r8_r8('H', 'L');
-                break;
-            case 0x66:
-                ld_r8_phl('H');
-                break;
-            case 0x67:
-                ld_r8_r8('H', 'A');
-                break;
-            case 0x68:
-                ld_r8_r8('L', 'B');
-                break;
-            case 0x69:
-                ld_r8_r8('L', 'C');
-                break;
-            case 0x6A:
-                ld_r8_r8('L', 'D');
-                break;
-            case 0x6B:
-                ld_r8_r8('L', 'E');
-                break;
-            case 0x6C:
-                ld_r8_r8('L', 'H');
-                break;
-            case 0x6D:
-                ld_r8_r8('L', 'L');
-                break;
-            case 0x6E:
-                ld_r8_phl('L');
-                break;
-            case 0x6F:
-                ld_r8_r8('L', 'A');
-                break;
+            case 0x60 -> ld_r8_r8('H', 'B');
+            case 0x61 -> ld_r8_r8('H', 'C');
+            case 0x62 -> ld_r8_r8('H', 'D');
+            case 0x63 -> ld_r8_r8('H', 'E');
+            case 0x64 -> ld_r8_r8('H', 'H');
+            case 0x65 -> ld_r8_r8('H', 'L');
+            case 0x66 -> ld_r8_phl('H');
+            case 0x67 -> ld_r8_r8('H', 'A');
+            case 0x68 -> ld_r8_r8('L', 'B');
+            case 0x69 -> ld_r8_r8('L', 'C');
+            case 0x6A -> ld_r8_r8('L', 'D');
+            case 0x6B -> ld_r8_r8('L', 'E');
+            case 0x6C -> ld_r8_r8('L', 'H');
+            case 0x6D -> ld_r8_r8('L', 'L');
+            case 0x6E -> ld_r8_phl('L');
+            case 0x6F -> ld_r8_r8('L', 'A');
 
             // --- ROW 7 ---
-            case 0x70:
-                ld_phl_r8('B');
-                break;
-            case 0x71:
-                ld_phl_r8('C');
-                break;
-            case 0x72:
-                ld_phl_r8('D');
-                break;
-            case 0x73:
-                ld_phl_r8('E');
-                break;
-            case 0x74:
-                ld_phl_r8('H');
-                break;
-            case 0x75:
-                ld_phl_r8('L');
-                break;
-            case 0x76:
-                throw new RuntimeException("Implement HALT");
-            case 0x77:
-                ld_phl_r8('A');
-                break;
-            case 0x78:
-                ld_r8_r8('A', 'B');
-                break;
-            case 0x79:
-                ld_r8_r8('A', 'C');
-                break;
-            case 0x7A:
-                ld_r8_r8('A', 'D');
-                break;
-            case 0x7B:
-                ld_r8_r8('A', 'E');
-                break;
-            case 0x7C:
-                ld_r8_r8('A', 'H');
-                break;
-            case 0x7D:
-                ld_r8_r8('A', 'L');
-                break;
-            case 0x7E:
-                ld_r8_phl('A');
-                break;
-            case 0x7F:
-                ld_r8_r8('A', 'A');
-                break;
-
+            case 0x70 -> ld_phl_r8('B');
+            case 0x71 -> ld_phl_r8('C');
+            case 0x72 -> ld_phl_r8('D');
+            case 0x73 -> ld_phl_r8('E');
+            case 0x74 -> ld_phl_r8('H');
+            case 0x75 -> ld_phl_r8('L');
+            case 0x76 -> throw new RuntimeException("Implement HALT");
+            case 0x77 -> ld_phl_r8('A');
+            case 0x78 -> ld_r8_r8('A', 'B');
+            case 0x79 -> ld_r8_r8('A', 'C');
+            case 0x7A -> ld_r8_r8('A', 'D');
+            case 0x7B -> ld_r8_r8('A', 'E');
+            case 0x7C -> ld_r8_r8('A', 'H');
+            case 0x7D -> ld_r8_r8('A', 'L');
+            case 0x7E -> ld_r8_phl('A');
+            case 0x7F -> ld_r8_r8('A', 'A');
 
 
             // --- ROW E ---
-            case 0xE0:
-                ldh_pn16_a();
-                break;
-            case 0xE2:
-                ldh_pc_a();
-                break;
-            case 0xEA:
-                ld_pn16_a();
-                break;
-
-
-
+            case 0xE0 -> ldh_pn16_a();
+            case 0xE2 -> ldh_pc_a();
+            case 0xEA -> ld_pn16_a();
 
             // --- ROW F ---
-            case 0xF0:
-                ldh_a_pn16();
-                break;
-            case 0xF2:
-                ldh_a_pc();
-                break;
-            case 0xFA:
-                ld_a_pn16();
-                break;
+            case 0xF0 -> ldh_a_pn16();
+            case 0xF2 -> ldh_a_pc();
+            case 0xFA -> ld_a_pn16();
 
-
-
-            default:
-                throw new RuntimeException("invalid opcode: " + opcode);
+            default -> throw new RuntimeException("invalid opcode: " + opcode);
         }
     }
 
@@ -582,265 +342,66 @@ public class CPU {
     // n = mem value at PC, n16 is the little endian word (handled in read/writeWord())
     // snake_casing for now since camelCase looks extremely bad for these names
 
-    // has to handle each register with every other register (n^2)
+    // has to handle each register with every other register
+    // TODO: turn to a switch, and handle each switch in it's own function
     private void ld_r8_r8(char toRegister, char fromRegister) {
-        if (toRegister == 'A') {
-            switch (fromRegister) {
-                case 'A':
-                    System.out.println("LD A,A. We do nothing for now");
-                    break;
-                case 'B':
-                    setr8('A', getr8('B'));
-                    break;
-                case 'C':
-                    setr8('A', getr8('C'));
-                    break;
-                case 'D':
-                    setr8('A', getr8('D'));
-                    break;
-                case 'E':
-                    setr8('A', getr8('E'));
-                    break;
-                case 'H':
-                    setr8('A', getr8('H'));
-                    break;
-                case 'L':
-                    setr8('A', getr8('L'));
-                    break;
-                default:
-                    throw new RuntimeException("load from register is incorrect: " + fromRegister);
-            }
-        } else if (toRegister == 'B') {
-             switch (fromRegister) {
-                case 'A':
-                    setr8('B', getr8('A'));
-                    break;
-                case 'B':
-                    System.out.println("LD B,B. We do nothing for now");
-                    break;
-                case 'C':
-                    setr8('B', getr8('C'));
-                    break;
-                case 'D':
-                    setr8('B', getr8('D'));
-                    break;
-                case 'E':
-                    setr8('B', getr8('E'));
-                    break;
-                case 'H':
-                    setr8('B', getr8('H'));
-                    break;
-                case 'L':
-                    setr8('B', getr8('L'));
-                    break;
-                default:
-                    throw new RuntimeException("load from register is incorrect: " + fromRegister);
-            }
-        } else if (toRegister == 'C') {
-             switch (fromRegister) {
-                case 'A':
-                    setr8('C', getr8('A'));
-                    break;
-                case 'B':
-                    setr8('C', getr8('B'));
-                    break;
-                case 'C':
-                    System.out.println("LD C,C. We do nothing for now");
-                    break;
-                case 'D':
-                    setr8('C', getr8('D'));
-                    break;
-                case 'E':
-                    setr8('C', getr8('E'));
-                    break;
-                case 'H':
-                    setr8('C', getr8('H'));
-                    break;
-                case 'L':
-                    setr8('C', getr8('L'));
-                    break;
-                default:
-                    throw new RuntimeException("load from register is incorrect: " + fromRegister);
-            }
-        } else if (toRegister == 'D') {
-             switch (fromRegister) {
-                case 'A':
-                    setr8('D', getr8('A'));
-                    break;
-                case 'B':
-                    setr8('D', getr8('B'));
-                    break;
-                case 'C':
-                    setr8('D', getr8('C'));
-                    break;
-                case 'D':
-                    System.out.println("LD D,D. We do nothing for now");
-                    break;
-                case 'E':
-                    setr8('D', getr8('E'));
-                    break;
-                case 'H':
-                    setr8('D', getr8('H'));
-                    break;
-                case 'L':
-                    setr8('D', getr8('L'));
-                    break;
-                default:
-                    throw new RuntimeException("load from register is incorrect: " + fromRegister);
-            }
-        } else if (toRegister == 'E') {
-             switch (fromRegister) {
-                case 'A':
-                    setr8('E', getr8('A'));
-                    break;
-                case 'B':
-                    setr8('E', getr8('B'));
-                    break;
-                case 'C':
-                    setr8('E', getr8('C'));
-                    break;
-                case 'D':
-                    setr8('E', getr8('D'));
-                    break;
-                case 'E':
-                    System.out.println("LD E,E. We do nothing for now");
-                    break;
-                case 'H':
-                    setr8('E', getr8('H'));
-                    break;
-                case 'L':
-                    setr8('E', getr8('L'));
-                    break;
-                default:
-                    throw new RuntimeException("load from register is incorrect: " + fromRegister);
-            }
-        } else if (toRegister == 'H') {
-             switch (fromRegister) {
-                case 'A':
-                    setr8('H', getr8('A'));
-                    break;
-                case 'B':
-                    setr8('H', getr8('B'));
-                    break;
-                case 'C':
-                    setr8('H', getr8('C'));
-                    break;
-                case 'D':
-                    setr8('H', getr8('D'));
-                    break;
-                case 'E':
-                    setr8('H', getr8('E'));
-                    break;
-                case 'H':
-                    System.out.println("LD H,H. We do nothing for now");
-                    break;
-                case 'L':
-                    setr8('H', getr8('L'));
-                    break;
-                default:
-                    throw new RuntimeException("load from register is incorrect: " + fromRegister);
-            }
-        } else if (toRegister == 'L') {
-             switch (fromRegister) {
-                case 'A':
-                    setr8('L', getr8('A'));
-                    break;
-                case 'B':
-                    setr8('L', getr8('B'));
-                    break;
-                case 'C':
-                    setr8('L', getr8('C'));
-                    break;
-                case 'D':
-                    setr8('L', getr8('D'));
-                    break;
-                case 'E':
-                    setr8('L', getr8('E'));
-                    break;
-                case 'H':
-                    setr8('L', getr8('H'));
-                    break;
-                case 'L':
-                    System.out.println("LD L,L. We do nothing for now");
-                    break;
-                default:
-                    throw new RuntimeException("load from register is incorrect: " + fromRegister);
-            }
+        switch (toRegister) {
+            case 'A' -> ld_r8r8_caseA(fromRegister);
+            case 'B' -> ld_r8r8_caseB(fromRegister);
+            case 'C' -> ld_r8r8_caseC(fromRegister);
+            case 'D' -> ld_r8r8_caseD(fromRegister);
+            case 'E' -> ld_r8r8_caseE(fromRegister);
+            case 'H' -> ld_r8r8_caseH(fromRegister);
+            case 'L' -> ld_r8r8_caseL(fromRegister);
+            default -> throw new RuntimeException("load from register is incorrect: " + fromRegister);
         }
-
         totalMCycles += 1;
         PC += 1;
     }
 
     private void ld_r8_n8(char register) {
         short value = memory.readByte(PC);
-
-        if (register == 'A') {
-            setr8('A', value);
-        } else if (register == 'B') {
-            setr8('B', value);
-        } else if (register == 'C') {
-            setr8('C', value);
-        } else if (register == 'D') {
-            setr8('D', value);
-        } else if (register == 'E') {
-            setr8('E', value);
-        } else if (register == 'H') {
-            setr8('H', value);
-        } else if (register == 'L') {
-            setr8('L', value);
-        } else {
-            throw new RuntimeException("invalid register: " + register);
+        switch (register) {
+            case 'A' -> setr8('A', value);
+            case 'B' -> setr8('B', value);
+            case 'C' -> setr8('C', value);
+            case 'D' -> setr8('D', value);
+            case 'E' -> setr8('E', value);
+            case 'H' -> setr8('H', value);
+            case 'L' -> setr8('L', value);
+            default -> throw new RuntimeException("invalid register: " + register);
         }
-
         totalMCycles += 2;
         PC += 2;
     }
 
     private void ld_phl_r8(char register) {
-        if (register == 'A') {
-            memory.writeByte(HL, (short)getr8('A'));
-        } else if (register == 'B') {
-            memory.writeByte(HL, (short)getr8('B'));
-        } else if (register == 'C') {
-            memory.writeByte(HL, (short)getr8('C'));
-        } else if (register == 'D') {
-            memory.writeByte(HL, (short)getr8('D'));
-        } else if (register == 'E') {
-            memory.writeByte(HL, (short)getr8('E'));
-        } else if (register == 'H') {
-            memory.writeByte(HL, (short)getr8('H'));
-        } else if (register == 'L') {
-            memory.writeByte(HL, (short)getr8('L'));
-        } else {
-            throw new RuntimeException("invalid register: " + register);
+        switch (register) {
+            case 'A' -> memory.writeByte(HL, (short)getr8('A'));
+            case 'B' -> memory.writeByte(HL, (short)getr8('B'));
+            case 'C' -> memory.writeByte(HL, (short)getr8('C'));
+            case 'D' -> memory.writeByte(HL, (short)getr8('D'));
+            case 'E' -> memory.writeByte(HL, (short)getr8('E'));
+            case 'H' -> memory.writeByte(HL, (short)getr8('H'));
+            case 'L' -> memory.writeByte(HL, (short)getr8('L'));
+            default -> throw new RuntimeException("invalid register: " + register);
         }
-
         totalMCycles += 2;
         PC += 1;
     }
 
     private void ld_r8_phl(char register) {
         int hlAddressValue = memory.readByte(HL);
-
-        if (register == 'A') {
-            setr8('A', hlAddressValue);
-        } else if (register == 'B') {
-            setr8('B', hlAddressValue);
-        } else if (register == 'C') {
-            setr8('C', hlAddressValue);
-        } else if (register == 'D') {
-            setr8('D', hlAddressValue);
-        } else if (register == 'E') {
-            setr8('E', hlAddressValue);
-        } else if (register == 'H') {
-            setr8('H', hlAddressValue);
-        } else if (register == 'L') {
-            setr8('L', hlAddressValue);
-        } else {
-            throw new RuntimeException("invalid register: " + register);
+        switch (register) {
+            case 'A' -> setr8('A', hlAddressValue);
+            case 'B' -> setr8('B', hlAddressValue);
+            case 'C' -> setr8('C', hlAddressValue);
+            case 'D' -> setr8('D', hlAddressValue);
+            case 'E' -> setr8('E', hlAddressValue);
+            case 'H' -> setr8('H', hlAddressValue);
+            case 'L' -> setr8('L', hlAddressValue);
+            default -> throw new RuntimeException("invalid register: " + register);
         }
-
         totalMCycles += 2;
         PC += 1;
     }
@@ -903,16 +464,12 @@ public class CPU {
 
 
     private void ld_r16_n16(String registers) {
-        if (registers.equals("BC")) {
-            BC = memory.readWord(PC); // n16 is value where PC points to. [n16] is again address of n16 (so 2 memory addresses)
-        } else if (registers.equals("DE")) {
-            DE = memory.readWord(PC);
-        } else if (registers.equals("HL")) {
-            HL = memory.readWord(PC);
-        } else if (registers.equals("SP")) {
-            SP = memory.readWord(PC);
-        } else {
-            throw new RuntimeException("invalid register: " + registers + " for LD r16,n16 instruction");
+        switch (registers) {
+            case "BC" -> BC = memory.readWord(PC); // n16 is value where PC points to. [n16] is again address of n16 (so 2 memory addresses)
+            case "DE" -> DE = memory.readWord(PC);
+            case "HL" -> HL = memory.readWord(PC);
+            case "SP" -> SP = memory.readWord(PC);
+            default -> throw new RuntimeException("invalid register: " + registers + " for LD r16,n16 instruction");
         }
         // for each instruction, we have length in bytes. This one = 3.
         // I think, since it reads a word, we get the pc and pc+1 (2 bytes of data), then the last byte is the
@@ -925,39 +482,37 @@ public class CPU {
     // i'm guessing we get the mem address of r16's value?? Yes! then write A to it..
     private void ld_pr16_a(String registers) {
         short regAValue = (short)getr8('A');
-        if (registers.equals("BC")) {
-            memory.writeByte(BC, regAValue);
-        } else if (registers.equals("DE")) {
-            memory.writeByte(DE, regAValue);
-        } else if (registers.equals("HL+")) { // HL+ HL- == HLI HLD which is Increment/decrement after
-            memory.writeByte(HL, regAValue);
-            HL++;
-        } else if (registers.equals("HL-")) {
-            memory.writeByte(HL, regAValue);
-            HL--;
-        } else {
-            throw new RuntimeException("invalid register: " + registers + " for LD pr16,a");
+        switch (registers) {
+            case "BC" -> memory.writeByte(BC, regAValue);
+            case "DE" -> memory.writeByte(DE, regAValue);
+            case "HL+" -> {
+                memory.writeByte(HL, regAValue);
+                HL++;
+            }
+            case "HL-" -> {
+                memory.writeByte(HL, regAValue);
+                HL--;
+            }
+            default -> throw new RuntimeException("invalid register: " + registers + " for LD pr16,a");
         }
-
         totalMCycles += 2;
         PC += 1;
     }
 
     private void ld_a_pr16(String registers) {
-        if (registers.equals("BC")) {
-            setr8('A', memory.readByte(BC));
-        } else if (registers.equals("DE")) {
-            setr8('A', memory.readByte(DE));
-        } else if (registers.equals("HL+")) { // HL+ HL- == HLI HLD which is Increment/decrement after
-            setr8('A', memory.readByte(HL));
-            HL++;
-        } else if (registers.equals("HL-")) {
-            setr8('A', memory.readByte(HL));
-            HL--;
-        } else {
-            throw new RuntimeException("invalid register: " + registers + " for LD pr16,a");
+        switch (registers) {
+            case "BC" -> setr8('A', memory.readByte(BC));
+            case "DE" -> setr8('A', memory.readByte(DE));
+            case "HL+" -> {
+                setr8('A', memory.readByte(HL));
+                HL++;
+            }
+            case "HL-" -> {
+                setr8('A', memory.readByte(HL));
+                HL--;
+            }
+            default -> throw new RuntimeException("invalid register: " + registers + " for LD a,pr16");
         }
-
         totalMCycles += 2;
         PC += 1;
     }
@@ -967,183 +522,31 @@ public class CPU {
 
     // inc/dec_r8 0x04/05/0C/0D to 0x34/35/3C/3D
     private void inc_r8(char register) {
-        if (register == 'A') {
-            short value = (short) getr8('A');
-            value++;
-            setr8('A', value);
-
-            setNFlag(false); // 0
-
-            if (value == 0) {
-                setZFlag(true);
-            } else if (value >= 0xF) { // overflow from bit 3 (so more or equal to 4 bits?
-                setHFlag(true); // keep as else if (since we can't have a 0 and an overflow can we ??)
-            }
-        } else if (register == 'B') {
-            short value = (short) getr8('B');
-            value++;
-            setr8('B', value);
-
-            setNFlag(false); // 0
-
-            if (value == 0) {
-                setZFlag(true);
-            } else if (value >= 0xF) {
-                setHFlag(true);
-            }
-        } else if (register == 'C') {
-            short value = (short) getr8('C');
-            value++;
-            setr8('C', value);
-
-            setNFlag(false); // 0
-
-            if (value == 0) {
-                setZFlag(true);
-            } else if (value >= 0xF) {
-                setHFlag(true);
-            }
-        } else if (register == 'D') {
-            short value = (short) getr8('D');
-            value++;
-            setr8('D', value);
-
-            setNFlag(false); // 0
-
-            if (value == 0) {
-                setZFlag(true);
-            } else if (value >= 0xF) {
-                setHFlag(true);
-            }
-        } else if (register == 'E') {
-            short value = (short) getr8('E');
-            value++;
-            setr8('E', value);
-
-            setNFlag(false); // 0
-
-            if (value == 0) {
-                setZFlag(true);
-            } else if (value >= 0xF) {
-                setHFlag(true);
-            }
-        } else if (register == 'H') {
-            short value = (short) getr8('H');
-            value++;
-            setr8('H', value);
-
-            setNFlag(false); // 0
-
-            if (value == 0) {
-                setZFlag(true);
-            } else if (value >= 0xF) {
-                setHFlag(true);
-            }
-        } else if (register == 'L') {
-            short value = (short) getr8('L');
-            value++;
-            setr8('L', value);
-
-            setNFlag(false); // 0
-
-            if (value == 0) {
-                setZFlag(true);
-            } else if (value >= 0xF) {
-                setHFlag(true);
-            }
+        switch (register) {
+            case 'A' -> inc_r8_caseA();
+            case 'B' -> inc_r8_caseB();
+            case 'C' -> inc_r8_caseC();
+            case 'D' -> inc_r8_caseD();
+            case 'E' -> inc_r8_caseE();
+            case 'H' -> inc_r8_caseH();
+            case 'L' -> inc_r8_caseL();
+            default -> throw new RuntimeException("Wrong register inputted: " + register);
         }
-
         totalMCycles += 1;
         PC += 1;
     }
 
     private void dec_r8(char register) {
-        if (register == 'A') {
-            short value = (short) getr8('A');
-            value--;
-            setr8('A', value);
-
-            setNFlag(true); // 1
-
-            if (value == 0) {
-                setZFlag(true);
-            } else if (value <= 0xF) { // set if borrow from bit 4 TODO: not sure what this means? keep as <= 0xF for now
-                setHFlag(true);
-            }
-        } else if (register == 'B') {
-            short value = (short) getr8('B');
-            value--;
-            setr8('B', value);
-
-            setNFlag(true);
-
-            if (value == 0) {
-                setZFlag(true);
-            } else if (value <= 0xF) {
-                setHFlag(true);
-            }
-        } else if (register == 'C') {
-            short value = (short) getr8('C');
-            value--;
-            setr8('C', value);
-
-            setNFlag(true);
-
-            if (value == 0) {
-                setZFlag(true);
-            } else if (value <= 0xF) {
-                setHFlag(true);
-            }
-        } else if (register == 'D') {
-            short value = (short) getr8('D');
-            value--;
-            setr8('D', value);
-
-            setNFlag(true);
-
-            if (value == 0) {
-                setZFlag(true);
-            } else if (value <= 0xF) {
-                setHFlag(true);
-            }
-        } else if (register == 'E') {
-            short value = (short) getr8('E');
-            value--;
-            setr8('E', value);
-
-            setNFlag(true);
-
-            if (value == 0) {
-                setZFlag(true);
-            } else if (value <= 0xF) {
-                setHFlag(true);
-            }
-        } else if (register == 'H') {
-            short value = (short) getr8('H');
-            value--;
-            setr8('H', value);
-
-            setNFlag(true);
-
-            if (value == 0) {
-                setZFlag(true);
-            } else if (value <= 0xF) {
-                setHFlag(true);
-            }
-        } else if (register == 'L') {
-            short value = (short) getr8('L');
-            value--;
-            setr8('L', value);
-
-            setNFlag(true);
-
-            if (value == 0) {
-                setZFlag(true);
-            } else if (value <= 0xF) {
-                setHFlag(true);
-            }
+        switch (register) {
+            case 'A' -> dec_r8_caseA();
+            case 'B' -> dec_r8_caseB();
+            case 'C' -> dec_r8_caseC();
+            case 'D' -> dec_r8_caseD();
+            case 'E' -> dec_r8_caseE();
+            case 'H' -> dec_r8_caseH();
+            case 'L' -> dec_r8_caseL();
+            default -> throw new RuntimeException("Wrong register inputted: " + register);
         }
-
         totalMCycles += 1;
         PC += 1;
     }
@@ -1160,7 +563,6 @@ public class CPU {
         } else if (addressValue >= 0xF) {
             setHFlag(true);
         }
-
         totalMCycles += 3;
         PC += 1;
     }
@@ -1177,42 +579,31 @@ public class CPU {
         } else if (addressValue <= 0xF) { // set if borrow from bit 4. Not sure what this means, we'll keep as <= 0xF for now
             setHFlag(true);
         }
-
         totalMCycles += 3;
         PC += 1;
     }
 
     // inc_r16 /dec, 0x03/0x0B ... 0x33/3B
     private void inc_r16(String registers) {
-        if (registers.equals("BC")) {
-            BC++;
-        } else if (registers.equals("DE")) {
-            DE++;
-        } else if (registers.equals("HL")) {
-            HL++;
-        } else if (registers.equals("SP")) {
-            SP++;
-        } else {
-            throw new RuntimeException("invalid register pair: " + registers + " for INC r16");
+        switch (registers) {
+            case "BC" -> BC++;
+            case "DE" -> DE++;
+            case "HL" -> HL++;
+            case "SP" -> SP++;
+            default -> throw new RuntimeException("invalid register pair: " + registers + " for INC r16");
         }
-
         totalMCycles += 2;
         PC += 1;
     }
 
     private void dec_r16(String registers) {
-        if (registers.equals("BC")) {
-            BC--;
-        } else if (registers.equals("DE")) {
-            DE--;
-        } else if (registers.equals("HL")) {
-            HL--;
-        } else if (registers.equals("SP")) {
-            SP--;
-        } else {
-            throw new RuntimeException("invalid register pair: " + registers + " for DEC r16");
+        switch (registers) {
+            case "BC" -> BC--;
+            case "DE" -> DE--;
+            case "HL" -> HL--;
+            case "SP" -> SP--;
+            default -> throw new RuntimeException("invalid register pair: " + registers + " for DEC r16");
         }
-
         totalMCycles += 2;
         PC += 1;
     }
@@ -1225,24 +616,16 @@ public class CPU {
      * @param value the byte we want to write
      */
     private void setr8(char register, int value) {
-        if (register == 'A') {
-            AF = (0x00FF & AF) | (value << 8); // rewrites high byte
-        } else if (register == 'F') {
-            AF = (0xFF00 & AF) | value; // rewrites low byte
-        } else if (register == 'B') {
-            BC = (0x00FF & BC) | (value << 8);
-        } else if (register == 'C') {
-            BC = (0xFF00 & BC) | value; // rewrites low byte
-        } else if (register == 'D') {
-            DE = (0x00FF & DE) | (value << 8);
-        } else if (register == 'E') {
-            DE = (0xFF00 & DE) | value; // rewrites low byte
-        } else if (register == 'H') {
-            HL = (0x00FF & HL) | (value << 8);
-        } else if (register == 'L') {
-            HL = (0xFF00 & HL) | value;
-        } else {
-            throw new RuntimeException("invalid register: " + register + " or if F, SP, PC, we cannot set a value here.");
+        switch (register) {
+            case 'A' -> AF = (0x00FF & AF) | (value << 8); // rewrites high byte
+            case 'F' -> AF = (0xFF00 & AF) | value; // rewrites low byte
+            case 'B' -> BC = (0x00FF & BC) | (value << 8);
+            case 'C' -> BC = (0xFF00 & BC) | value;
+            case 'D' -> DE = (0x00FF & DE) | (value << 8);
+            case 'E' -> DE = (0xFF00 & DE) | value;
+            case 'H' -> HL = (0x00FF & HL) | (value << 8);
+            case 'L' -> HL = (0xFF00 & HL) | value;
+            default -> throw new RuntimeException("invalid register: " + register + " or if F, SP, PC, we cannot set a value here.");
         }
     }
 
@@ -1252,25 +635,17 @@ public class CPU {
      * @return the byte value
      */
     private int getr8(char register) {
-        if (register == 'A') {
-            return AF >> 8; // removes low byte
-        } else if (register == 'F') {
-            return 0x00FF & AF;
-        } else if (register == 'B') {
-            return BC >> 8;
-        } else if (register == 'C') {
-            return 0x00FF & BC;
-        } else if (register == 'D') {
-            return DE >> 8;
-        } else if (register == 'E') {
-            return 0x00FF & DE;
-        } else if (register == 'H') {
-            return HL >> 8;
-        } else if (register == 'L') {
-            return 0x00FF & HL;
-        } else {
-            throw new RuntimeException("invalid register: " + register + " or if F, SP, PC, we cannot set a value here.");
-        }
+        return switch (register) {
+            case 'A' -> AF >> 8; // removes low byte
+            case 'F' -> 0x00FF & AF;
+            case 'B' -> BC >> 8;
+            case 'C' -> 0x00FF & BC;
+            case 'D' -> DE >> 8;
+            case 'E' -> 0x00FF & DE;
+            case 'H' -> HL >> 8;
+            case 'L' -> 0x00FF & HL;
+            default -> throw new RuntimeException("invalid register: " + register + " or if F, SP, PC, we cannot set a value here.");
+        };
     }
 
     /**
@@ -1321,5 +696,298 @@ public class CPU {
         setr8('F', zFlagSet);
     }
 
+    /**
+     * Avoids creating a nested switch statment in ld_r8_r8.
+     * <br><br>
+     * Each of them apply all registers to a specific register.
+     * @param fromRegister register we load from
+     */
+    private void ld_r8r8_caseA(char fromRegister) {
+        switch (fromRegister) {
+            case 'A' -> System.out.println("LD A,A. We do nothing for now");
+            case 'B' -> setr8('A', getr8('B'));
+            case 'C' -> setr8('A', getr8('C'));
+            case 'D' -> setr8('A', getr8('D'));
+            case 'E' -> setr8('A', getr8('E'));
+            case 'H' -> setr8('A', getr8('H'));
+            case 'L' -> setr8('A', getr8('L'));
+            default -> throw new RuntimeException("load from register is incorrect: " + fromRegister);
+        }
+    }
+
+    private void ld_r8r8_caseB(char fromRegister) {
+        switch (fromRegister) {
+            case 'A' -> setr8('B', getr8('A'));
+            case 'B' -> System.out.println("LD B,B. We do nothing for now");
+            case 'C' -> setr8('B', getr8('C'));
+            case 'D' -> setr8('B', getr8('D'));
+            case 'E' -> setr8('B', getr8('E'));
+            case 'H' -> setr8('B', getr8('H'));
+            case 'L' -> setr8('B', getr8('L'));
+            default -> throw new RuntimeException("load from register is incorrect: " + fromRegister);
+        }
+    }
+
+    private void ld_r8r8_caseC(char fromRegister) {
+        switch (fromRegister) {
+            case 'A' -> setr8('C', getr8('A'));
+            case 'B' -> setr8('C', getr8('B'));
+            case 'C' -> System.out.println("LD C,C. We do nothing for now");
+            case 'D' -> setr8('C', getr8('D'));
+            case 'E' -> setr8('C', getr8('E'));
+            case 'H' -> setr8('C', getr8('H'));
+            case 'L' -> setr8('C', getr8('L'));
+            default -> throw new RuntimeException("load from register is incorrect: " + fromRegister);
+        }
+    }
+
+    private void ld_r8r8_caseD(char fromRegister) {
+        switch (fromRegister) {
+            case 'A' -> setr8('D', getr8('A'));
+            case 'B' -> setr8('D', getr8('B'));
+            case 'C' -> setr8('D', getr8('C'));
+            case 'D' -> System.out.println("LD D,D. We do nothing for now");
+            case 'E' -> setr8('D', getr8('E'));
+            case 'H' -> setr8('D', getr8('H'));
+            case 'L' -> setr8('D', getr8('L'));
+            default -> throw new RuntimeException("load from register is incorrect: " + fromRegister);
+        }
+    }
+
+    private void ld_r8r8_caseE(char fromRegister) {
+        switch (fromRegister) {
+            case 'A' -> setr8('E', getr8('A'));
+            case 'B' -> setr8('E', getr8('B'));
+            case 'C' -> setr8('E', getr8('E'));
+            case 'D' -> setr8('E', getr8('D'));
+            case 'E' -> System.out.println("LD E,E. We do nothing for now");
+            case 'H' -> setr8('E', getr8('H'));
+            case 'L' -> setr8('E', getr8('L'));
+            default -> throw new RuntimeException("load from register is incorrect: " + fromRegister);
+        }
+    }
+
+    private void ld_r8r8_caseH(char fromRegister) {
+        switch (fromRegister) {
+            case 'A' -> setr8('H', getr8('A'));
+            case 'B' -> setr8('H', getr8('B'));
+            case 'C' -> setr8('H', getr8('H'));
+            case 'D' -> setr8('H', getr8('D'));
+            case 'E' -> setr8('H', getr8('E'));
+            case 'H' -> System.out.println("LD H,H. We do nothing for now");
+            case 'L' -> setr8('H', getr8('L'));
+            default -> throw new RuntimeException("load from register is incorrect: " + fromRegister);
+        }
+    }
+
+    private void ld_r8r8_caseL(char fromRegister) {
+        switch (fromRegister) {
+            case 'A' -> setr8('L', getr8('A'));
+            case 'B' -> setr8('L', getr8('B'));
+            case 'C' -> setr8('L', getr8('L'));
+            case 'D' -> setr8('L', getr8('D'));
+            case 'E' -> setr8('L', getr8('E'));
+            case 'H' -> setr8('L', getr8('H'));
+            case 'L' -> System.out.println("LD L,L. We do nothing for now");
+            default -> throw new RuntimeException("load from register is incorrect: " + fromRegister);
+        }
+    }
+
+
+    private void inc_r8_caseA() {
+        short value = (short) getr8('A');
+        value++;
+        setr8('A', value);
+
+        setNFlag(false); // 0
+
+        if (value == 0) {
+            setZFlag(true);
+        } else if (value >= 0xF) { // set if overflow from bit 3, i think if it's just over 0xF..
+            setHFlag(true);
+        }
+    }
+
+    private void inc_r8_caseB() {
+        short value = (short) getr8('B');
+        value++;
+        setr8('B', value);
+
+        setNFlag(false); // 0
+
+        if (value == 0) {
+            setZFlag(true);
+        } else if (value >= 0xF) {
+            setHFlag(true);
+        }
+    }
+
+    private void inc_r8_caseC() {
+        short value = (short) getr8('C');
+        value++;
+        setr8('C', value);
+
+        setNFlag(false); // 0
+
+        if (value == 0) {
+            setZFlag(true);
+        } else if (value >= 0xF) {
+            setHFlag(true);
+        }
+    }
+
+    private void inc_r8_caseD() {
+        short value = (short) getr8('D');
+        value++;
+        setr8('D', value);
+
+        setNFlag(false); // 0
+
+        if (value == 0) {
+            setZFlag(true);
+        } else if (value >= 0xF) {
+            setHFlag(true);
+        }
+    }
+
+    private void inc_r8_caseE() {
+        short value = (short) getr8('E');
+        value++;
+        setr8('E', value);
+
+        setNFlag(false); // 0
+
+        if (value == 0) {
+            setZFlag(true);
+        } else if (value >= 0xF) {
+            setHFlag(true);
+        }
+    }
+
+    private void inc_r8_caseH() {
+        short value = (short) getr8('H');
+        value++;
+        setr8('H', value);
+
+        setNFlag(false); // 0
+
+        if (value == 0) {
+            setZFlag(true);
+        } else if (value >= 0xF) {
+            setHFlag(true);
+        }
+    }
+
+    private void inc_r8_caseL() {
+        short value = (short) getr8('L');
+        value++;
+        setr8('L', value);
+
+        setNFlag(false); // 0
+
+        if (value == 0) {
+            setZFlag(true);
+        } else if (value >= 0xF) {
+            setHFlag(true);
+        }
+    }
+
+    private void dec_r8_caseA() {
+        short value = (short) getr8('A');
+        value--;
+        setr8('A', value);
+
+        setNFlag(true); // 1
+
+        if (value == 0) {
+            setZFlag(true);
+        } else if (value <= 0xF) { // set if borrow from bit 4 TODO: not sure what this means? keep as <= 0xF for now
+            setHFlag(true);
+        }
+    }
+
+    private void dec_r8_caseB() {
+        short value = (short) getr8('B');
+        value--;
+        setr8('B', value);
+
+        setNFlag(true); // 1
+
+        if (value == 0) {
+            setZFlag(true);
+        } else if (value <= 0xF) {
+            setHFlag(true);
+        }
+    }
+
+    private void dec_r8_caseC() {
+        short value = (short) getr8('C');
+        value--;
+        setr8('C', value);
+
+        setNFlag(true); // 1
+
+        if (value == 0) {
+            setZFlag(true);
+        } else if (value <= 0xF) {
+            setHFlag(true);
+        }
+    }
+
+    private void dec_r8_caseD() {
+        short value = (short) getr8('D');
+        value--;
+        setr8('D', value);
+
+        setNFlag(true); // 1
+
+        if (value == 0) {
+            setZFlag(true);
+        } else if (value <= 0xF) {
+            setHFlag(true);
+        }
+    }
+
+    private void dec_r8_caseE() {
+        short value = (short) getr8('E');
+        value--;
+        setr8('E', value);
+
+        setNFlag(true); // 1
+
+        if (value == 0) {
+            setZFlag(true);
+        } else if (value <= 0xF) {
+            setHFlag(true);
+        }
+    }
+
+    private void dec_r8_caseH() {
+        short value = (short) getr8('H');
+        value--;
+        setr8('H', value);
+
+        setNFlag(true); // 1
+
+        if (value == 0) {
+            setZFlag(true);
+        } else if (value <= 0xF) {
+            setHFlag(true);
+        }
+    }
+
+    private void dec_r8_caseL() {
+        short value = (short) getr8('L');
+        value--;
+        setr8('L', value);
+
+        setNFlag(true); // 1
+
+        if (value == 0) {
+            setZFlag(true);
+        } else if (value <= 0xF) {
+            setHFlag(true);
+        }
+    }
 
 }

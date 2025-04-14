@@ -6,5 +6,6 @@ Implement LD instructions [DONE] (are they fully correct?)
 
 
 Mon 14th Apr:
-
-Implement INC and DEC instructions [in progress]
+- Implement INC and DEC instructions [DONE]
+- Change switch cases to Java 12's switch expression (more concise) [DONE]
+- Change register if else's to switch expressions [DONE]
