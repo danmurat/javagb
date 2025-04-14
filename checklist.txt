@@ -3,4 +3,4 @@ Figure out how the program counter should be changed [DONE]
 - if ld_n_nn = 3 bytes then we will pc += 3, etc..
 
 
-Implement LD instructions [in progress]
+Implement LD instructions [DONE] (are they fully correct?)
