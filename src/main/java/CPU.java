@@ -181,11 +181,29 @@ public class CPU {
             case 0x02:
                 ld_pr16_a("BC");
                 break;
+            case 0x03:
+                inc_r16("BC");
+                break;
+            case 0x04:
+                inc_r8('B');
+                break;
+            case 0x05:
+                dec_r8('B');
+                break;
             case 0x06:
                 ld_r8_n8('B');
                 break;
             case 0x0A:
                 ld_a_pr16("BC");
+                break;
+            case 0x0B:
+                dec_r16("BC");
+                break;
+            case 0x0C:
+                inc_r8('C');
+                break;
+            case 0x0D:
+                dec_r8('C');
                 break;
             case 0x0E:
                 ld_r8_n8('C');
@@ -201,11 +219,29 @@ public class CPU {
             case 0x12:
                 ld_pr16_a("DE");
                 break;
+            case 0x13:
+                inc_r16("DE");
+                break;
+            case 0x14:
+                inc_r8('D');
+                break;
+            case 0x15:
+                dec_r8('D');
+                break;
             case 0x16:
                 ld_r8_n8('D');
                 break;
             case 0x1A:
                 ld_a_pr16("DE");
+                break;
+            case 0x1B:
+                dec_r16("DE");
+                break;
+            case 0x1C:
+                inc_r8('E');
+                break;
+            case 0x1D:
+                dec_r8('E');
                 break;
             case 0x1E:
                 ld_r8_n8('E');
@@ -221,11 +257,29 @@ public class CPU {
             case 0x22:
                 ld_pr16_a("HL+");
                 break;
+            case 0x23:
+                inc_r16("HL");
+                break;
+            case 0x24:
+                inc_r8('H');
+                break;
+            case 0x25:
+                dec_r8('H');
+                break;
             case 0x26:
                 ld_r8_n8('H');
                 break;
             case 0x2A:
                 ld_a_pr16("HL+");
+                break;
+            case 0x2B:
+                dec_r16("HL");
+                break;
+            case 0x2C:
+                inc_r8('L');
+                break;
+            case 0x2D:
+                dec_r8('L');
                 break;
             case 0x2E:
                 ld_r8_n8('L');
@@ -241,11 +295,29 @@ public class CPU {
             case 0x32:
                 ld_pr16_a("HL-");
                 break;
+            case 0x33:
+                inc_r16("SP");
+                break;
+            case 0x34:
+                inc_phl();
+                break;
+            case 0x35:
+                dec_phl();
+                break;
             case 0x36:
                 ld_phl_n8();
                 break;
             case 0x3A:
                 ld_a_pr16("HL-");
+                break;
+            case 0x3B:
+                dec_r16("SP");
+                break;
+            case 0x3C:
+                inc_r8('A');
+                break;
+            case 0x3D:
+                dec_r8('A');
                 break;
             case 0x3E:
                 ld_r8_n8('A');
@@ -505,7 +577,7 @@ public class CPU {
     // with help from https://rgbds.gbdev.io/docs/v0.9.1/gbz80.7#INSTRUCTION_REFERENCE
 
 
-    // --- LDs ---
+    // --- LD 's ---
     // r = register, so r8 = 8bit reg, r16 = 16bit. pr = the address a register points to
     // n = mem value at PC, n16 is the little endian word (handled in read/writeWord())
     // snake_casing for now since camelCase looks extremely bad for these names
@@ -726,22 +798,20 @@ public class CPU {
     }
 
     private void ld_phl_r8(char register) {
-        int hlAddress = memory.readWord(HL); // we go to address pointed to by HL
-                                             // but we write at the address of that (may be wrong)
-        if (register == 'A') {               // prob have to write to HL address only
-            memory.writeByte(hlAddress, (short)getr8('A')); // so writeByte(HL, ...)
+        if (register == 'A') {
+            memory.writeByte(HL, (short)getr8('A'));
         } else if (register == 'B') {
-            memory.writeByte(hlAddress, (short)getr8('B'));
+            memory.writeByte(HL, (short)getr8('B'));
         } else if (register == 'C') {
-            memory.writeByte(hlAddress, (short)getr8('C'));
+            memory.writeByte(HL, (short)getr8('C'));
         } else if (register == 'D') {
-            memory.writeByte(hlAddress, (short)getr8('D'));
+            memory.writeByte(HL, (short)getr8('D'));
         } else if (register == 'E') {
-            memory.writeByte(hlAddress, (short)getr8('E'));
+            memory.writeByte(HL, (short)getr8('E'));
         } else if (register == 'H') {
-            memory.writeByte(hlAddress, (short)getr8('H'));
+            memory.writeByte(HL, (short)getr8('H'));
         } else if (register == 'L') {
-            memory.writeByte(hlAddress, (short)getr8('L'));
+            memory.writeByte(HL, (short)getr8('L'));
         } else {
             throw new RuntimeException("invalid register: " + register);
         }
@@ -832,16 +902,15 @@ public class CPU {
     }
 
 
-    // TODO: this is n16, not [n16]. Check if we really need to use the address of PC?
     private void ld_r16_n16(String registers) {
         if (registers.equals("BC")) {
-            BC = PC; // TODO: this is prob wrong, it want the value n16, not where it points to
+            BC = memory.readWord(PC); // n16 is value where PC points to. [n16] is again address of n16 (so 2 memory addresses)
         } else if (registers.equals("DE")) {
-            DE = PC;
+            DE = memory.readWord(PC);
         } else if (registers.equals("HL")) {
-            HL = PC;
+            HL = memory.readWord(PC);
         } else if (registers.equals("SP")) {
-            SP = PC;
+            SP = memory.readWord(PC);
         } else {
             throw new RuntimeException("invalid register: " + registers + " for LD r16,n16 instruction");
         }
@@ -894,6 +963,260 @@ public class CPU {
     }
 
 
+    // --- INC/DEC ---
+
+    // inc/dec_r8 0x04/05/0C/0D to 0x34/35/3C/3D
+    private void inc_r8(char register) {
+        if (register == 'A') {
+            short value = (short) getr8('A');
+            value++;
+            setr8('A', value);
+
+            setNFlag(false); // 0
+
+            if (value == 0) {
+                setZFlag(true);
+            } else if (value >= 0xF) { // overflow from bit 3 (so more or equal to 4 bits?
+                setHFlag(true); // keep as else if (since we can't have a 0 and an overflow can we ??)
+            }
+        } else if (register == 'B') {
+            short value = (short) getr8('B');
+            value++;
+            setr8('B', value);
+
+            setNFlag(false); // 0
+
+            if (value == 0) {
+                setZFlag(true);
+            } else if (value >= 0xF) {
+                setHFlag(true);
+            }
+        } else if (register == 'C') {
+            short value = (short) getr8('C');
+            value++;
+            setr8('C', value);
+
+            setNFlag(false); // 0
+
+            if (value == 0) {
+                setZFlag(true);
+            } else if (value >= 0xF) {
+                setHFlag(true);
+            }
+        } else if (register == 'D') {
+            short value = (short) getr8('D');
+            value++;
+            setr8('D', value);
+
+            setNFlag(false); // 0
+
+            if (value == 0) {
+                setZFlag(true);
+            } else if (value >= 0xF) {
+                setHFlag(true);
+            }
+        } else if (register == 'E') {
+            short value = (short) getr8('E');
+            value++;
+            setr8('E', value);
+
+            setNFlag(false); // 0
+
+            if (value == 0) {
+                setZFlag(true);
+            } else if (value >= 0xF) {
+                setHFlag(true);
+            }
+        } else if (register == 'H') {
+            short value = (short) getr8('H');
+            value++;
+            setr8('H', value);
+
+            setNFlag(false); // 0
+
+            if (value == 0) {
+                setZFlag(true);
+            } else if (value >= 0xF) {
+                setHFlag(true);
+            }
+        } else if (register == 'L') {
+            short value = (short) getr8('L');
+            value++;
+            setr8('L', value);
+
+            setNFlag(false); // 0
+
+            if (value == 0) {
+                setZFlag(true);
+            } else if (value >= 0xF) {
+                setHFlag(true);
+            }
+        }
+
+        totalMCycles += 1;
+        PC += 1;
+    }
+
+    private void dec_r8(char register) {
+        if (register == 'A') {
+            short value = (short) getr8('A');
+            value--;
+            setr8('A', value);
+
+            setNFlag(true); // 1
+
+            if (value == 0) {
+                setZFlag(true);
+            } else if (value <= 0xF) { // set if borrow from bit 4 TODO: not sure what this means? keep as <= 0xF for now
+                setHFlag(true);
+            }
+        } else if (register == 'B') {
+            short value = (short) getr8('B');
+            value--;
+            setr8('B', value);
+
+            setNFlag(true);
+
+            if (value == 0) {
+                setZFlag(true);
+            } else if (value <= 0xF) {
+                setHFlag(true);
+            }
+        } else if (register == 'C') {
+            short value = (short) getr8('C');
+            value--;
+            setr8('C', value);
+
+            setNFlag(true);
+
+            if (value == 0) {
+                setZFlag(true);
+            } else if (value <= 0xF) {
+                setHFlag(true);
+            }
+        } else if (register == 'D') {
+            short value = (short) getr8('D');
+            value--;
+            setr8('D', value);
+
+            setNFlag(true);
+
+            if (value == 0) {
+                setZFlag(true);
+            } else if (value <= 0xF) {
+                setHFlag(true);
+            }
+        } else if (register == 'E') {
+            short value = (short) getr8('E');
+            value--;
+            setr8('E', value);
+
+            setNFlag(true);
+
+            if (value == 0) {
+                setZFlag(true);
+            } else if (value <= 0xF) {
+                setHFlag(true);
+            }
+        } else if (register == 'H') {
+            short value = (short) getr8('H');
+            value--;
+            setr8('H', value);
+
+            setNFlag(true);
+
+            if (value == 0) {
+                setZFlag(true);
+            } else if (value <= 0xF) {
+                setHFlag(true);
+            }
+        } else if (register == 'L') {
+            short value = (short) getr8('L');
+            value--;
+            setr8('L', value);
+
+            setNFlag(true);
+
+            if (value == 0) {
+                setZFlag(true);
+            } else if (value <= 0xF) {
+                setHFlag(true);
+            }
+        }
+
+        totalMCycles += 1;
+        PC += 1;
+    }
+
+    private void inc_phl() {
+        short addressValue = memory.readByte(HL);
+        addressValue++;
+        memory.writeByte(HL, addressValue);
+
+        setNFlag(false);
+
+        if (addressValue == 0) {
+            setZFlag(true);
+        } else if (addressValue >= 0xF) {
+            setHFlag(true);
+        }
+
+        totalMCycles += 3;
+        PC += 1;
+    }
+
+    private void dec_phl() {
+        short addressValue = memory.readByte(HL);
+        addressValue--;
+        memory.writeByte(HL, addressValue);
+
+        setNFlag(true);
+
+        if (addressValue == 0) {
+            setZFlag(true);
+        } else if (addressValue <= 0xF) { // set if borrow from bit 4. Not sure what this means, we'll keep as <= 0xF for now
+            setHFlag(true);
+        }
+
+        totalMCycles += 3;
+        PC += 1;
+    }
+
+    // inc_r16 /dec, 0x03/0x0B ... 0x33/3B
+    private void inc_r16(String registers) {
+        if (registers.equals("BC")) {
+            BC++;
+        } else if (registers.equals("DE")) {
+            DE++;
+        } else if (registers.equals("HL")) {
+            HL++;
+        } else if (registers.equals("SP")) {
+            SP++;
+        } else {
+            throw new RuntimeException("invalid register pair: " + registers + " for INC r16");
+        }
+
+        totalMCycles += 2;
+        PC += 1;
+    }
+
+    private void dec_r16(String registers) {
+        if (registers.equals("BC")) {
+            BC--;
+        } else if (registers.equals("DE")) {
+            DE--;
+        } else if (registers.equals("HL")) {
+            HL--;
+        } else if (registers.equals("SP")) {
+            SP--;
+        } else {
+            throw new RuntimeException("invalid register pair: " + registers + " for DEC r16");
+        }
+
+        totalMCycles += 2;
+        PC += 1;
+    }
+
     // ------ HELPER METHODS --------
 
     /**
@@ -904,6 +1227,8 @@ public class CPU {
     private void setr8(char register, int value) {
         if (register == 'A') {
             AF = (0x00FF & AF) | (value << 8); // rewrites high byte
+        } else if (register == 'F') {
+            AF = (0xFF00 & AF) | value; // rewrites low byte
         } else if (register == 'B') {
             BC = (0x00FF & BC) | (value << 8);
         } else if (register == 'C') {
@@ -929,6 +1254,8 @@ public class CPU {
     private int getr8(char register) {
         if (register == 'A') {
             return AF >> 8; // removes low byte
+        } else if (register == 'F') {
+            return 0x00FF & AF;
         } else if (register == 'B') {
             return BC >> 8;
         } else if (register == 'C') {
@@ -945,5 +1272,54 @@ public class CPU {
             throw new RuntimeException("invalid register: " + register + " or if F, SP, PC, we cannot set a value here.");
         }
     }
+
+    /**
+     * Zero Flag, Accesses the 7th bit in F register (from AF) and sets it to 1 or 0
+     */
+    private void setZFlag(boolean toOne) {
+        short regFValue = (short) getr8('F');
+        int zFlagSet = regFValue | 0b10000000; // keeps all other bits same but makes sure 7th is set
+        if (!toOne) {
+            zFlagSet = zFlagSet & 0b01111111; // otherwise set 7th bit to off (0)
+        }
+        setr8('F', zFlagSet);
+    }
+
+    /**
+     * Subtraction Flag, Accesses the 6th bit in F register (from AF) and sets it to 1 or 0
+     */
+    private void setNFlag(boolean toOne) {
+        short regFValue = (short) getr8('F');
+        int zFlagSet = regFValue | 0b01000000;
+        if (!toOne) {
+            zFlagSet = zFlagSet & 0b10111111;
+        }
+        setr8('F', zFlagSet);
+    }
+
+    /**
+     * Half Carry Flag, Accesses the 5th bit in F register (from AF) and sets it to 1 or 0
+     */
+    private void setHFlag(boolean toOne) {
+        short regFValue = (short) getr8('F');
+        int zFlagSet = regFValue | 0b00100000;
+        if (!toOne) {
+            zFlagSet = zFlagSet & 0b11011111;
+        }
+        setr8('F', zFlagSet);
+    }
+
+    /**
+     * CarryFlag, Accesses the 4th bit in F register (from AF) and sets it to 1 or 0
+     */
+    private void setCFlag(boolean toOne) {
+        short regFValue = (short) getr8('F');
+        int zFlagSet = regFValue | 0b00010000;
+        if (!toOne) {
+            zFlagSet = zFlagSet & 0b11101111;
+        }
+        setr8('F', zFlagSet);
+    }
+
 
 }

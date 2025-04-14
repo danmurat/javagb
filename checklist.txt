@@ -2,5 +2,9 @@ Figure out how the program counter should be changed [DONE]
 - the program counter is incremented by the amount of bytes an instruction takes
 - if ld_n_nn = 3 bytes then we will pc += 3, etc..
 
-
 Implement LD instructions [DONE] (are they fully correct?)
+
+
+Mon 14th Apr:
+
+Implement INC and DEC instructions [in progress]
