@@ -9,3 +9,9 @@ Mon 14th Apr:
 - Implement INC and DEC instructions [DONE]
 - Change switch cases to Java 12's switch expression (more concise) [DONE]
 - Change register if else's to switch expressions [DONE]
+
+So far LD's and INC/DEC are implemented. Next we'll do ADD instruction
+
+Tue 15th Apr:
+- Implement the 21 opcodes for ADD instruction [DONE]
+- Refactor this code (reduce the flag checks to 1 method) [DONE]

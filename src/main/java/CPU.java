@@ -5,12 +5,6 @@
  */
 public class CPU {
     private Memory memory;
-
-    // WHAT DO WE NEED?
-
-
-    // Registers (cpu memory)
-
     /*
      These can be either accessed as 16 bit (AF) or 8 bit individually (just A)
 
@@ -32,6 +26,7 @@ public class CPU {
 
     private int SP;
     private int PC;
+    private int pcAccess = PC + 1;
 
     // flags TODO: consider removing, because F register bits hold flag info (bit 7 = z flag, etc..)
     /**
@@ -130,12 +125,6 @@ public class CPU {
         SP = 0;     // stack pointer
         PC = 0x100; // program counter
 
-        // initalise all flags to false
-        z = false;
-        n = false;
-        h = false;
-        c = false;
-
         totalMCycles = 0;
     }
 
@@ -165,7 +154,7 @@ public class CPU {
      * to optimise this ourselves. This should be very quick.
      * @param opcode the programme opcode
      */
-    private void instructionCall(short opcode) {
+    private void instructionCall(final short opcode) {
         // private because we'll handle the execution in another method
         // huge switch case
 
@@ -181,6 +170,7 @@ public class CPU {
             case 0x04 -> inc_r8('B');
             case 0x05 -> dec_r8('B');
             case 0x06 -> ld_r8_n8('B');
+            case 0x09 -> add_hl_r16("BC");
             case 0x0A -> ld_a_pr16("BC");
             case 0x0B -> dec_r16("BC");
             case 0x0C -> inc_r8('C');
@@ -195,6 +185,7 @@ public class CPU {
             case 0x14 -> inc_r8('D');
             case 0x15 -> dec_r8('D');
             case 0x16 -> ld_r8_n8('D');
+            case 0x19 -> add_hl_r16("DE");
             case 0x1A -> ld_a_pr16("DE");
             case 0x1B -> dec_r16("DE");
             case 0x1C -> inc_r8('E');
@@ -209,6 +200,7 @@ public class CPU {
             case 0x24 -> inc_r8('H');
             case 0x25 -> dec_r8('H');
             case 0x26 -> ld_r8_n8('H');
+            case 0x29 -> add_hl_r16("HL");
             case 0x2A -> ld_a_pr16("HL+");
             case 0x2B -> dec_r16("HL");
             case 0x2C -> inc_r8('L');
@@ -223,6 +215,7 @@ public class CPU {
             case 0x34 -> inc_phl();
             case 0x35 -> dec_phl();
             case 0x36 -> ld_phl_n8();
+            case 0x39 -> add_hl_r16("SP");
             case 0x3A -> ld_a_pr16("HL-");
             case 0x3B -> dec_r16("SP");
             case 0x3C -> inc_r8('A');
@@ -303,10 +296,23 @@ public class CPU {
             case 0x7E -> ld_r8_phl('A');
             case 0x7F -> ld_r8_r8('A', 'A');
 
+            // --- ROW 8 ---
+            case 0x80 -> add_a_r8('B');
+            case 0x81 -> add_a_r8('C');
+            case 0x82 -> add_a_r8('D');
+            case 0x83 -> add_a_r8('E');
+            case 0x84 -> add_a_r8('H');
+            case 0x85 -> add_a_r8('L');
+            case 0x86 -> add_a_phl();
+            case 0x87 -> add_a_r8('A');
+
+            // --- ROW C ---
+            case 0xC6 -> add_a_n8();
 
             // --- ROW E ---
             case 0xE0 -> ldh_pn16_a();
             case 0xE2 -> ldh_pc_a();
+            case 0xE8 -> add_sp_e8();
             case 0xEA -> ld_pn16_a();
 
             // --- ROW F ---
@@ -322,7 +328,7 @@ public class CPU {
      * When opcode is prefixed with xCB
      * @param opcode the programme opcode
      */
-    private void prefixedInstructionCall(short opcode) {
+    private void prefixedInstructionCall(final short opcode) {
         switch (opcode) {
             case 0x00:
                 System.out.println("implement the prefixed opcodes!");
@@ -344,7 +350,7 @@ public class CPU {
 
     // has to handle each register with every other register
     // TODO: turn to a switch, and handle each switch in it's own function
-    private void ld_r8_r8(char toRegister, char fromRegister) {
+    private void ld_r8_r8(final char toRegister, final char fromRegister) {
         switch (toRegister) {
             case 'A' -> ld_r8r8_caseA(fromRegister);
             case 'B' -> ld_r8r8_caseB(fromRegister);
@@ -359,8 +365,8 @@ public class CPU {
         PC += 1;
     }
 
-    private void ld_r8_n8(char register) {
-        short value = memory.readByte(PC);
+    private void ld_r8_n8(final char register) {
+        final short value = memory.readByte(pcAccess);
         switch (register) {
             case 'A' -> setr8('A', value);
             case 'B' -> setr8('B', value);
@@ -375,7 +381,7 @@ public class CPU {
         PC += 2;
     }
 
-    private void ld_phl_r8(char register) {
+    private void ld_phl_r8(final char register) {
         switch (register) {
             case 'A' -> memory.writeByte(HL, (short)getr8('A'));
             case 'B' -> memory.writeByte(HL, (short)getr8('B'));
@@ -390,8 +396,8 @@ public class CPU {
         PC += 1;
     }
 
-    private void ld_r8_phl(char register) {
-        int hlAddressValue = memory.readByte(HL);
+    private void ld_r8_phl(final char register) {
+        final int hlAddressValue = memory.readByte(HL);
         switch (register) {
             case 'A' -> setr8('A', hlAddressValue);
             case 'B' -> setr8('B', hlAddressValue);
@@ -407,7 +413,7 @@ public class CPU {
     }
 
     private void ld_phl_n8() {
-        short value = memory.readByte(PC);
+        final short value = memory.readByte(pcAccess);
         memory.writeByte(HL, value);
 
         totalMCycles += 3;
@@ -415,17 +421,17 @@ public class CPU {
     }
 
     private void ldh_pc_a() {
-        short regCValue = (short) getr8('C');
-        int address = 0xFF00 | regCValue;
+        final short regCValue = (short) getr8('C');
+        final int address = 0xFF00 | regCValue;
         memory.writeByte(address, (short)getr8('A'));
 
         totalMCycles += 2;
-       PC += 1;
+        PC += 1;
     }
 
     private void ldh_a_pc() {
-        short regCValue = (short) getr8('C'); // TODO: consider changing return type to short (on getr8)
-        int address = 0xFF00 | regCValue;
+        final short regCValue = (short) getr8('C'); // TODO: consider changing return type to short (on getr8)
+        final int address = 0xFF00 | regCValue;
         setr8('A', memory.readByte(address));
 
         totalMCycles += 2;
@@ -433,7 +439,7 @@ public class CPU {
     }
 
     private void ldh_pn16_a() {
-        if (0xFF00 <= PC && PC <= 0xFFFF) {
+        if (0xFF00 <= pcAccess && pcAccess <= 0xFFFF) {
             ld_pn16_a();
         }
         totalMCycles += 3; // TODO: should these be inside the if?? does the cycles/pc still increment if PC is not in a suitable place?
@@ -441,7 +447,7 @@ public class CPU {
     }
 
     private void ldh_a_pn16() {
-        if (0xFF00 <= PC && PC <= 0xFFFF) {
+        if (0xFF00 <= pcAccess && pcAccess <= 0xFFFF) {
             ld_a_pn16();
         }
         totalMCycles += 3;
@@ -449,26 +455,26 @@ public class CPU {
     }
     // [n] means we go to the address of the address that PC points to
     private void ld_pn16_a() {
-        int address = memory.readWord(PC);
+        final int address = memory.readWord(pcAccess);
         memory.writeByte(address, (short) getr8('A'));
         totalMCycles += 4;
         PC += 3;
     }
 
     private void ld_a_pn16() {
-        int address = memory.readWord(PC);
+        final int address = memory.readWord(pcAccess);
         setr8('A', memory.readByte(address));
         totalMCycles += 4;
         PC += 3;
     }
 
 
-    private void ld_r16_n16(String registers) {
+    private void ld_r16_n16(final String registers) {
         switch (registers) {
-            case "BC" -> BC = memory.readWord(PC); // n16 is value where PC points to. [n16] is again address of n16 (so 2 memory addresses)
-            case "DE" -> DE = memory.readWord(PC);
-            case "HL" -> HL = memory.readWord(PC);
-            case "SP" -> SP = memory.readWord(PC);
+            case "BC" -> BC = memory.readWord(pcAccess); // n16 is value where PC points to. [n16] is again address of n16 (so 2 memory addresses)
+            case "DE" -> DE = memory.readWord(pcAccess);
+            case "HL" -> HL = memory.readWord(pcAccess);
+            case "SP" -> SP = memory.readWord(pcAccess);
             default -> throw new RuntimeException("invalid register: " + registers + " for LD r16,n16 instruction");
         }
         // for each instruction, we have length in bytes. This one = 3.
@@ -480,8 +486,8 @@ public class CPU {
 
     // this loads a into the "byte pointed to by r16"
     // i'm guessing we get the mem address of r16's value?? Yes! then write A to it..
-    private void ld_pr16_a(String registers) {
-        short regAValue = (short)getr8('A');
+    private void ld_pr16_a(final String registers) {
+        final short regAValue = (short)getr8('A');
         switch (registers) {
             case "BC" -> memory.writeByte(BC, regAValue);
             case "DE" -> memory.writeByte(DE, regAValue);
@@ -499,7 +505,7 @@ public class CPU {
         PC += 1;
     }
 
-    private void ld_a_pr16(String registers) {
+    private void ld_a_pr16(final String registers) {
         switch (registers) {
             case "BC" -> setr8('A', memory.readByte(BC));
             case "DE" -> setr8('A', memory.readByte(DE));
@@ -521,7 +527,7 @@ public class CPU {
     // --- INC/DEC ---
 
     // inc/dec_r8 0x04/05/0C/0D to 0x34/35/3C/3D
-    private void inc_r8(char register) {
+    private void inc_r8(final char register) {
         switch (register) {
             case 'A' -> inc_r8_caseA();
             case 'B' -> inc_r8_caseB();
@@ -536,7 +542,7 @@ public class CPU {
         PC += 1;
     }
 
-    private void dec_r8(char register) {
+    private void dec_r8(final char register) {
         switch (register) {
             case 'A' -> dec_r8_caseA();
             case 'B' -> dec_r8_caseB();
@@ -557,12 +563,8 @@ public class CPU {
         memory.writeByte(HL, addressValue);
 
         setNFlag(false);
+        zFlagHFlag_8bit_overflow(addressValue);
 
-        if (addressValue == 0) {
-            setZFlag(true);
-        } else if (addressValue >= 0xF) {
-            setHFlag(true);
-        }
         totalMCycles += 3;
         PC += 1;
     }
@@ -573,18 +575,14 @@ public class CPU {
         memory.writeByte(HL, addressValue);
 
         setNFlag(true);
+        zFlagHFlag_8bit_borrow(addressValue);
 
-        if (addressValue == 0) {
-            setZFlag(true);
-        } else if (addressValue <= 0xF) { // set if borrow from bit 4. Not sure what this means, we'll keep as <= 0xF for now
-            setHFlag(true);
-        }
         totalMCycles += 3;
         PC += 1;
     }
 
     // inc_r16 /dec, 0x03/0x0B ... 0x33/3B
-    private void inc_r16(String registers) {
+    private void inc_r16(final String registers) {
         switch (registers) {
             case "BC" -> BC++;
             case "DE" -> DE++;
@@ -596,7 +594,7 @@ public class CPU {
         PC += 1;
     }
 
-    private void dec_r16(String registers) {
+    private void dec_r16(final String registers) {
         switch (registers) {
             case "BC" -> BC--;
             case "DE" -> DE--;
@@ -608,6 +606,87 @@ public class CPU {
         PC += 1;
     }
 
+    // --- ADD instructions ---
+
+    private void add_a_r8(final char register) {
+        switch (register) {
+            case 'A' -> add_ar8_caseA();
+            case 'B' -> add_ar8_caseB();
+            case 'C' -> add_ar8_caseC();
+            case 'D' -> add_ar8_caseD();
+            case 'E' -> add_ar8_caseE();
+            case 'H' -> add_ar8_caseH();
+            case 'L' -> add_ar8_caseL();
+            default -> throw new RuntimeException("invalid register: " + register);
+        }
+        setNFlag(false);
+        totalMCycles += 1;
+        PC += 1;
+    }
+
+    private void add_a_n8() {
+        final short addressValue = memory.readByte(pcAccess);
+        final short aValue = (short) getr8('A');
+        final int addedValue = aValue + addressValue;
+        setr8('A', addedValue);
+
+        setNFlag(false);
+        zFlagHFlagCFlag_8bit_overflow(addedValue);
+
+        totalMCycles += 2;
+        PC += 2;
+    }
+
+    private void add_a_phl() {
+        final short addressValue = memory.readByte(HL); // TODO: basically dupelicate with add a,n8
+        final short aValue = (short) getr8('A');
+        final int addedValue = aValue + addressValue;
+        setr8('A', addedValue);
+
+        setNFlag(false);
+        zFlagHFlagCFlag_8bit_overflow(addedValue);
+
+        totalMCycles += 2;
+        PC += 1;
+    }
+
+    private void add_sp_e8() {
+        final short addressValue = memory.readByte(pcAccess); // TODO: e8 is signed!! not unsigned (not sure what we need to do)
+        SP += addressValue;
+
+        setZFlag(false);
+        setNFlag(false);
+        hFlagCFlag_8bit_overflow(SP);
+
+        totalMCycles += 4;
+        PC += 2;
+    }
+
+    private void add_hl_r16(final String registers) {
+        switch (registers) {
+            case "BC" -> {
+                HL += BC;
+                hFlagCFlag_16bit_overflow(HL);
+            }
+            case "DE" -> {
+                HL += DE;
+                hFlagCFlag_16bit_overflow(HL);
+            }
+            case "HL" -> {
+                HL += HL;
+                hFlagCFlag_16bit_overflow(HL);
+            }
+            case "SP" -> {
+                HL += SP;
+                hFlagCFlag_16bit_overflow(HL);
+            }
+            default -> throw new RuntimeException("invalid register pair: " + registers + " for ADD HL,r16");
+        }
+        setNFlag(false);
+        totalMCycles += 2;
+        PC += 1;
+    }
+
     // ------ HELPER METHODS --------
 
     /**
@@ -615,7 +694,7 @@ public class CPU {
      * @param register the register we want to write to
      * @param value the byte we want to write
      */
-    private void setr8(char register, int value) {
+    private void setr8(final char register, final int value) {
         switch (register) {
             case 'A' -> AF = (0x00FF & AF) | (value << 8); // rewrites high byte
             case 'F' -> AF = (0xFF00 & AF) | value; // rewrites low byte
@@ -634,7 +713,7 @@ public class CPU {
      * @param register the register we want to read
      * @return the byte value
      */
-    private int getr8(char register) {
+    private int getr8(final char register) {
         return switch (register) {
             case 'A' -> AF >> 8; // removes low byte
             case 'F' -> 0x00FF & AF;
@@ -651,8 +730,8 @@ public class CPU {
     /**
      * Zero Flag, Accesses the 7th bit in F register (from AF) and sets it to 1 or 0
      */
-    private void setZFlag(boolean toOne) {
-        short regFValue = (short) getr8('F');
+    private void setZFlag(final boolean toOne) {
+        final short regFValue = (short) getr8('F');
         int zFlagSet = regFValue | 0b10000000; // keeps all other bits same but makes sure 7th is set
         if (!toOne) {
             zFlagSet = zFlagSet & 0b01111111; // otherwise set 7th bit to off (0)
@@ -663,8 +742,8 @@ public class CPU {
     /**
      * Subtraction Flag, Accesses the 6th bit in F register (from AF) and sets it to 1 or 0
      */
-    private void setNFlag(boolean toOne) {
-        short regFValue = (short) getr8('F');
+    private void setNFlag(final boolean toOne) {
+        final short regFValue = (short) getr8('F');
         int zFlagSet = regFValue | 0b01000000;
         if (!toOne) {
             zFlagSet = zFlagSet & 0b10111111;
@@ -675,8 +754,8 @@ public class CPU {
     /**
      * Half Carry Flag, Accesses the 5th bit in F register (from AF) and sets it to 1 or 0
      */
-    private void setHFlag(boolean toOne) {
-        short regFValue = (short) getr8('F');
+    private void setHFlag(final boolean toOne) {
+        final short regFValue = (short) getr8('F');
         int zFlagSet = regFValue | 0b00100000;
         if (!toOne) {
             zFlagSet = zFlagSet & 0b11011111;
@@ -687,13 +766,56 @@ public class CPU {
     /**
      * CarryFlag, Accesses the 4th bit in F register (from AF) and sets it to 1 or 0
      */
-    private void setCFlag(boolean toOne) {
-        short regFValue = (short) getr8('F');
+    private void setCFlag(final boolean toOne) {
+        final short regFValue = (short) getr8('F');
         int zFlagSet = regFValue | 0b00010000;
         if (!toOne) {
             zFlagSet = zFlagSet & 0b11101111;
         }
         setr8('F', zFlagSet);
+    }
+
+    private void zFlagHFlagCFlag_8bit_overflow(final int value) {
+        if (value == 0) {
+            setZFlag(true);
+        } else if (value > 0xFF) {
+            setCFlag(true);
+        } else if (value > 0xF) {
+            setHFlag(true);
+        }
+    }
+
+    private void zFlagHFlag_8bit_overflow(final int value) {
+        if (value == 0) {
+            setZFlag(true);
+        } else if (value > 0xF) { // set if overflow from bit 3
+            setHFlag(true);
+        }
+    }
+
+    private void zFlagHFlag_8bit_borrow(final int value) {
+        if (value == 0) {
+            setZFlag(true);
+        } else if (value <= 0xF) {
+            setHFlag(true); // set if borrow from bit 4
+        }                   // although <= 0xF could be wrong, but from 10000 - 1 (binary) we do borrow 4th bit
+                            // == 1111 == 0xF
+    }
+
+    private void hFlagCFlag_8bit_overflow(final int value) {
+        if (value > 0xFF) {
+            setCFlag(true);
+        } else if (value > 0xF) {
+            setHFlag(true);
+        }
+    }
+
+    private void hFlagCFlag_16bit_overflow(final int value) {
+        if (value > 0xFFFF) {
+            setCFlag(true);
+        } else if (value > 0xFFF) {
+            setHFlag(true);
+        }
     }
 
     /**
@@ -702,7 +824,7 @@ public class CPU {
      * Each of them apply all registers to a specific register.
      * @param fromRegister register we load from
      */
-    private void ld_r8r8_caseA(char fromRegister) {
+    private void ld_r8r8_caseA(final char fromRegister) {
         switch (fromRegister) {
             case 'A' -> System.out.println("LD A,A. We do nothing for now");
             case 'B' -> setr8('A', getr8('B'));
@@ -715,7 +837,7 @@ public class CPU {
         }
     }
 
-    private void ld_r8r8_caseB(char fromRegister) {
+    private void ld_r8r8_caseB(final char fromRegister) {
         switch (fromRegister) {
             case 'A' -> setr8('B', getr8('A'));
             case 'B' -> System.out.println("LD B,B. We do nothing for now");
@@ -728,7 +850,7 @@ public class CPU {
         }
     }
 
-    private void ld_r8r8_caseC(char fromRegister) {
+    private void ld_r8r8_caseC(final char fromRegister) {
         switch (fromRegister) {
             case 'A' -> setr8('C', getr8('A'));
             case 'B' -> setr8('C', getr8('B'));
@@ -741,7 +863,7 @@ public class CPU {
         }
     }
 
-    private void ld_r8r8_caseD(char fromRegister) {
+    private void ld_r8r8_caseD(final char fromRegister) {
         switch (fromRegister) {
             case 'A' -> setr8('D', getr8('A'));
             case 'B' -> setr8('D', getr8('B'));
@@ -754,7 +876,7 @@ public class CPU {
         }
     }
 
-    private void ld_r8r8_caseE(char fromRegister) {
+    private void ld_r8r8_caseE(final char fromRegister) {
         switch (fromRegister) {
             case 'A' -> setr8('E', getr8('A'));
             case 'B' -> setr8('E', getr8('B'));
@@ -767,7 +889,7 @@ public class CPU {
         }
     }
 
-    private void ld_r8r8_caseH(char fromRegister) {
+    private void ld_r8r8_caseH(final char fromRegister) {
         switch (fromRegister) {
             case 'A' -> setr8('H', getr8('A'));
             case 'B' -> setr8('H', getr8('B'));
@@ -780,7 +902,7 @@ public class CPU {
         }
     }
 
-    private void ld_r8r8_caseL(char fromRegister) {
+    private void ld_r8r8_caseL(final char fromRegister) {
         switch (fromRegister) {
             case 'A' -> setr8('L', getr8('A'));
             case 'B' -> setr8('L', getr8('B'));
@@ -794,18 +916,15 @@ public class CPU {
     }
 
 
+    // TODO: is there a way to run a loop through A to L and run a single method?
+    // they are all repeated, apart from accessing different registers. Can this be condensed to a for loop?
     private void inc_r8_caseA() {
         short value = (short) getr8('A');
         value++;
         setr8('A', value);
 
         setNFlag(false); // 0
-
-        if (value == 0) {
-            setZFlag(true);
-        } else if (value >= 0xF) { // set if overflow from bit 3, i think if it's just over 0xF..
-            setHFlag(true);
-        }
+        zFlagHFlag_8bit_overflow(value);
     }
 
     private void inc_r8_caseB() {
@@ -814,12 +933,7 @@ public class CPU {
         setr8('B', value);
 
         setNFlag(false); // 0
-
-        if (value == 0) {
-            setZFlag(true);
-        } else if (value >= 0xF) {
-            setHFlag(true);
-        }
+        zFlagHFlag_8bit_overflow(value);
     }
 
     private void inc_r8_caseC() {
@@ -828,12 +942,7 @@ public class CPU {
         setr8('C', value);
 
         setNFlag(false); // 0
-
-        if (value == 0) {
-            setZFlag(true);
-        } else if (value >= 0xF) {
-            setHFlag(true);
-        }
+        zFlagHFlag_8bit_overflow(value);
     }
 
     private void inc_r8_caseD() {
@@ -842,12 +951,7 @@ public class CPU {
         setr8('D', value);
 
         setNFlag(false); // 0
-
-        if (value == 0) {
-            setZFlag(true);
-        } else if (value >= 0xF) {
-            setHFlag(true);
-        }
+        zFlagHFlag_8bit_overflow(value);
     }
 
     private void inc_r8_caseE() {
@@ -856,12 +960,7 @@ public class CPU {
         setr8('E', value);
 
         setNFlag(false); // 0
-
-        if (value == 0) {
-            setZFlag(true);
-        } else if (value >= 0xF) {
-            setHFlag(true);
-        }
+        zFlagHFlag_8bit_overflow(value);
     }
 
     private void inc_r8_caseH() {
@@ -870,12 +969,7 @@ public class CPU {
         setr8('H', value);
 
         setNFlag(false); // 0
-
-        if (value == 0) {
-            setZFlag(true);
-        } else if (value >= 0xF) {
-            setHFlag(true);
-        }
+        zFlagHFlag_8bit_overflow(value);
     }
 
     private void inc_r8_caseL() {
@@ -884,12 +978,7 @@ public class CPU {
         setr8('L', value);
 
         setNFlag(false); // 0
-
-        if (value == 0) {
-            setZFlag(true);
-        } else if (value >= 0xF) {
-            setHFlag(true);
-        }
+        zFlagHFlag_8bit_overflow(value);
     }
 
     private void dec_r8_caseA() {
@@ -898,12 +987,7 @@ public class CPU {
         setr8('A', value);
 
         setNFlag(true); // 1
-
-        if (value == 0) {
-            setZFlag(true);
-        } else if (value <= 0xF) { // set if borrow from bit 4 TODO: not sure what this means? keep as <= 0xF for now
-            setHFlag(true);
-        }
+        zFlagHFlag_8bit_borrow(value);
     }
 
     private void dec_r8_caseB() {
@@ -912,12 +996,7 @@ public class CPU {
         setr8('B', value);
 
         setNFlag(true); // 1
-
-        if (value == 0) {
-            setZFlag(true);
-        } else if (value <= 0xF) {
-            setHFlag(true);
-        }
+        zFlagHFlag_8bit_borrow(value);
     }
 
     private void dec_r8_caseC() {
@@ -926,12 +1005,7 @@ public class CPU {
         setr8('C', value);
 
         setNFlag(true); // 1
-
-        if (value == 0) {
-            setZFlag(true);
-        } else if (value <= 0xF) {
-            setHFlag(true);
-        }
+        zFlagHFlag_8bit_borrow(value);
     }
 
     private void dec_r8_caseD() {
@@ -940,12 +1014,7 @@ public class CPU {
         setr8('D', value);
 
         setNFlag(true); // 1
-
-        if (value == 0) {
-            setZFlag(true);
-        } else if (value <= 0xF) {
-            setHFlag(true);
-        }
+        zFlagHFlag_8bit_borrow(value);
     }
 
     private void dec_r8_caseE() {
@@ -954,12 +1023,7 @@ public class CPU {
         setr8('E', value);
 
         setNFlag(true); // 1
-
-        if (value == 0) {
-            setZFlag(true);
-        } else if (value <= 0xF) {
-            setHFlag(true);
-        }
+        zFlagHFlag_8bit_borrow(value);
     }
 
     private void dec_r8_caseH() {
@@ -968,12 +1032,7 @@ public class CPU {
         setr8('H', value);
 
         setNFlag(true); // 1
-
-        if (value == 0) {
-            setZFlag(true);
-        } else if (value <= 0xF) {
-            setHFlag(true);
-        }
+        zFlagHFlag_8bit_borrow(value);
     }
 
     private void dec_r8_caseL() {
@@ -982,12 +1041,65 @@ public class CPU {
         setr8('L', value);
 
         setNFlag(true); // 1
-
-        if (value == 0) {
-            setZFlag(true);
-        } else if (value <= 0xF) {
-            setHFlag(true);
-        }
+        zFlagHFlag_8bit_borrow(value);
     }
 
+
+    // TODO: these are all literally the same code block..
+    private void add_ar8_caseA() {
+        final int aValue = getr8('A');
+        final int addedValue = aValue * 2;
+        setr8('A', addedValue);
+        zFlagHFlagCFlag_8bit_overflow(addedValue);
+    }
+
+    private void add_ar8_caseB() {
+        final int aValue = getr8('A');
+        final int bValue = getr8('B');
+        // we could for loop through r8's. But we lose the instant access
+
+        final int addedValue = aValue + bValue;
+        setr8('A', addedValue);
+        zFlagHFlagCFlag_8bit_overflow(addedValue);
+    }
+
+    private void add_ar8_caseC() {
+        final int aValue = getr8('A');
+        final int cValue = getr8('C');
+        final int addedValue = aValue + cValue;
+        setr8('A', addedValue);
+        zFlagHFlagCFlag_8bit_overflow(addedValue);
+    }
+
+    private void add_ar8_caseD() {
+        final int aValue = getr8('A');
+        final int dValue = getr8('D');
+        final int addedValue = aValue + dValue;
+        setr8('A', addedValue);
+        zFlagHFlagCFlag_8bit_overflow(addedValue);
+    }
+
+    private void add_ar8_caseE() {
+        final int aValue = getr8('A');
+        final int eValue = getr8('E');
+        final int addedValue = aValue + eValue;
+        setr8('A', addedValue);
+        zFlagHFlagCFlag_8bit_overflow(addedValue);
+    }
+
+    private void add_ar8_caseH() {
+        final int aValue = getr8('A');
+        final int hValue = getr8('H');
+        final int addedValue = aValue + hValue;
+        setr8('A', addedValue);
+        zFlagHFlagCFlag_8bit_overflow(addedValue);
+    }
+
+    private void add_ar8_caseL() {
+        final int aValue = getr8('A');
+        final int lValue = getr8('L');
+        final int addedValue = aValue + lValue;
+        setr8('A', addedValue);
+        zFlagHFlagCFlag_8bit_overflow(addedValue);
+    }
 }
