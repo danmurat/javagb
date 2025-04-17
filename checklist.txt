@@ -15,3 +15,9 @@ So far LD's and INC/DEC are implemented. Next we'll do ADD instruction
 Tue 15th Apr:
 - Implement the 21 opcodes for ADD instruction [DONE]
 - Refactor this code (reduce the flag checks to 1 method) [DONE]
+
+
+Thu 17th Apr:
+We still have a lot of repeated code. Especially where we essentially do the same thing but access
+a different register. Reducing this to a for loop (from a to l) would reduce our code by prob 20-30%,
+but then our accesses become iterative instead of instant...

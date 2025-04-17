@@ -348,66 +348,32 @@ public class CPU {
     // n = mem value at PC, n16 is the little endian word (handled in read/writeWord())
     // snake_casing for now since camelCase looks extremely bad for these names
 
-    // has to handle each register with every other register
-    // TODO: turn to a switch, and handle each switch in it's own function
     private void ld_r8_r8(final char toRegister, final char fromRegister) {
-        switch (toRegister) {
-            case 'A' -> ld_r8r8_caseA(fromRegister);
-            case 'B' -> ld_r8r8_caseB(fromRegister);
-            case 'C' -> ld_r8r8_caseC(fromRegister);
-            case 'D' -> ld_r8r8_caseD(fromRegister);
-            case 'E' -> ld_r8r8_caseE(fromRegister);
-            case 'H' -> ld_r8r8_caseH(fromRegister);
-            case 'L' -> ld_r8r8_caseL(fromRegister);
-            default -> throw new RuntimeException("load from register is incorrect: " + fromRegister);
-        }
+        setr8(toRegister, getr8(fromRegister));
+
         totalMCycles += 1;
         PC += 1;
     }
 
     private void ld_r8_n8(final char register) {
         final short value = memory.readByte(pcAccess);
-        switch (register) {
-            case 'A' -> setr8('A', value);
-            case 'B' -> setr8('B', value);
-            case 'C' -> setr8('C', value);
-            case 'D' -> setr8('D', value);
-            case 'E' -> setr8('E', value);
-            case 'H' -> setr8('H', value);
-            case 'L' -> setr8('L', value);
-            default -> throw new RuntimeException("invalid register: " + register);
-        }
+        setr8(register, value); // are we making sure we're not setting F?
+
         totalMCycles += 2;
         PC += 2;
     }
 
     private void ld_phl_r8(final char register) {
-        switch (register) {
-            case 'A' -> memory.writeByte(HL, (short)getr8('A'));
-            case 'B' -> memory.writeByte(HL, (short)getr8('B'));
-            case 'C' -> memory.writeByte(HL, (short)getr8('C'));
-            case 'D' -> memory.writeByte(HL, (short)getr8('D'));
-            case 'E' -> memory.writeByte(HL, (short)getr8('E'));
-            case 'H' -> memory.writeByte(HL, (short)getr8('H'));
-            case 'L' -> memory.writeByte(HL, (short)getr8('L'));
-            default -> throw new RuntimeException("invalid register: " + register);
-        }
+        memory.writeByte(HL, (short) getr8(register));
+
         totalMCycles += 2;
         PC += 1;
     }
 
     private void ld_r8_phl(final char register) {
         final int hlAddressValue = memory.readByte(HL);
-        switch (register) {
-            case 'A' -> setr8('A', hlAddressValue);
-            case 'B' -> setr8('B', hlAddressValue);
-            case 'C' -> setr8('C', hlAddressValue);
-            case 'D' -> setr8('D', hlAddressValue);
-            case 'E' -> setr8('E', hlAddressValue);
-            case 'H' -> setr8('H', hlAddressValue);
-            case 'L' -> setr8('L', hlAddressValue);
-            default -> throw new RuntimeException("invalid register: " + register);
-        }
+        setr8(register, hlAddressValue);
+
         totalMCycles += 2;
         PC += 1;
     }
@@ -470,18 +436,10 @@ public class CPU {
 
 
     private void ld_r16_n16(final String registers) {
-        switch (registers) {
-            case "BC" -> BC = memory.readWord(pcAccess); // n16 is value where PC points to. [n16] is again address of n16 (so 2 memory addresses)
-            case "DE" -> DE = memory.readWord(pcAccess);
-            case "HL" -> HL = memory.readWord(pcAccess);
-            case "SP" -> SP = memory.readWord(pcAccess);
-            default -> throw new RuntimeException("invalid register: " + registers + " for LD r16,n16 instruction");
-        }
-        // for each instruction, we have length in bytes. This one = 3.
-        // I think, since it reads a word, we get the pc and pc+1 (2 bytes of data), then the last byte is the
-        // pc incrementation. So since we access pc, pc+1, the pc should end at pc + 2 (or 3??)
+        setr16(registers, memory.readWord(pcAccess));
+
         totalMCycles += 3;
-        PC += 3; // might actually be just 2
+        PC += 3;
     }
 
     // this loads a into the "byte pointed to by r16"
@@ -528,31 +486,25 @@ public class CPU {
 
     // inc/dec_r8 0x04/05/0C/0D to 0x34/35/3C/3D
     private void inc_r8(final char register) {
-        switch (register) {
-            case 'A' -> inc_r8_caseA();
-            case 'B' -> inc_r8_caseB();
-            case 'C' -> inc_r8_caseC();
-            case 'D' -> inc_r8_caseD();
-            case 'E' -> inc_r8_caseE();
-            case 'H' -> inc_r8_caseH();
-            case 'L' -> inc_r8_caseL();
-            default -> throw new RuntimeException("Wrong register inputted: " + register);
-        }
+        short value = (short) getr8(register); // getr8 will throw if invalid register
+        value++;
+        setr8(register, value);
+
+        setNFlag(false); // 0
+        zFlagHFlag_8bit_overflow(value);
+
         totalMCycles += 1;
         PC += 1;
     }
 
     private void dec_r8(final char register) {
-        switch (register) {
-            case 'A' -> dec_r8_caseA();
-            case 'B' -> dec_r8_caseB();
-            case 'C' -> dec_r8_caseC();
-            case 'D' -> dec_r8_caseD();
-            case 'E' -> dec_r8_caseE();
-            case 'H' -> dec_r8_caseH();
-            case 'L' -> dec_r8_caseL();
-            default -> throw new RuntimeException("Wrong register inputted: " + register);
-        }
+        short value = (short) getr8(register);
+        value--;
+        setr8(register, value);
+
+        setNFlag(true); // 1
+        zFlagHFlag_8bit_borrow(value);
+
         totalMCycles += 1;
         PC += 1;
     }
@@ -583,25 +535,19 @@ public class CPU {
 
     // inc_r16 /dec, 0x03/0x0B ... 0x33/3B
     private void inc_r16(final String registers) {
-        switch (registers) {
-            case "BC" -> BC++;
-            case "DE" -> DE++;
-            case "HL" -> HL++;
-            case "SP" -> SP++;
-            default -> throw new RuntimeException("invalid register pair: " + registers + " for INC r16");
-        }
+        int registerValue = getr16(registers);
+        registerValue++;
+        setr16(registers, registerValue);
+
         totalMCycles += 2;
         PC += 1;
     }
 
     private void dec_r16(final String registers) {
-        switch (registers) {
-            case "BC" -> BC--;
-            case "DE" -> DE--;
-            case "HL" -> HL--;
-            case "SP" -> SP--;
-            default -> throw new RuntimeException("invalid register pair: " + registers + " for DEC r16");
-        }
+        int registerValue = getr16(registers);
+        registerValue--;
+        setr16(registers, registerValue);
+
         totalMCycles += 2;
         PC += 1;
     }
@@ -609,17 +555,13 @@ public class CPU {
     // --- ADD instructions ---
 
     private void add_a_r8(final char register) {
-        switch (register) {
-            case 'A' -> add_ar8_caseA();
-            case 'B' -> add_ar8_caseB();
-            case 'C' -> add_ar8_caseC();
-            case 'D' -> add_ar8_caseD();
-            case 'E' -> add_ar8_caseE();
-            case 'H' -> add_ar8_caseH();
-            case 'L' -> add_ar8_caseL();
-            default -> throw new RuntimeException("invalid register: " + register);
-        }
+        final int aValue = getr8('A');
+        final int r8Value = getr8(register);
+        final int addedValue = aValue + r8Value;
+        setr8('A', addedValue);
+        zFlagHFlagCFlag_8bit_overflow(addedValue);
         setNFlag(false);
+
         totalMCycles += 1;
         PC += 1;
     }
@@ -697,9 +639,8 @@ public class CPU {
     private void setr8(final char register, final int value) {
         switch (register) {
             case 'A' -> AF = (0x00FF & AF) | (value << 8); // rewrites high byte
-            case 'F' -> AF = (0xFF00 & AF) | value; // rewrites low byte
             case 'B' -> BC = (0x00FF & BC) | (value << 8);
-            case 'C' -> BC = (0xFF00 & BC) | value;
+            case 'C' -> BC = (0xFF00 & BC) | value; // rewrites low byte
             case 'D' -> DE = (0x00FF & DE) | (value << 8);
             case 'E' -> DE = (0xFF00 & DE) | value;
             case 'H' -> HL = (0x00FF & HL) | (value << 8);
@@ -716,7 +657,6 @@ public class CPU {
     private int getr8(final char register) {
         return switch (register) {
             case 'A' -> AF >> 8; // removes low byte
-            case 'F' -> 0x00FF & AF;
             case 'B' -> BC >> 8;
             case 'C' -> 0x00FF & BC;
             case 'D' -> DE >> 8;
@@ -727,52 +667,92 @@ public class CPU {
         };
     }
 
+    // these are for F flag only (to avoid incorrectly setting/getting f's where we don't want to)
+    private void setF(final int value) {
+        AF = (0xFF00 & AF) | value; // rewrites low byte
+    }
+
+    private int getF() {
+        return 0x00FF & AF;
+    }
+
+    /**
+     * Setter for the 16bit register pairs.
+     * Will reduce switch cases in code.
+     * @param registers the register pair
+     */
+    private void setr16(final String registers, final int value) {
+        switch (registers) {
+            case "BC" -> BC = value;
+            case "DE" -> DE = value;
+            case "HL" -> HL = value;
+            case "SP" -> SP = value;
+            default -> throw new RuntimeException("invalid register pair: " + registers + " for R16");
+        }
+    }
+
+    /**
+     * Getter for 16bit register pairs.
+     * Reduces switch cases in our code
+     * @param registers the register pairs
+     * @return the value of the selected valid pair
+     */
+    private int getr16(final String registers) {
+        return switch(registers) {
+            case "BC" -> BC;
+            case "DE" -> DE;
+            case "HL" -> HL;
+            case "SP" -> SP;
+            default -> throw new RuntimeException("invalid register pair: " + registers + " for R16");
+        };
+    }
+
     /**
      * Zero Flag, Accesses the 7th bit in F register (from AF) and sets it to 1 or 0
      */
     private void setZFlag(final boolean toOne) {
-        final short regFValue = (short) getr8('F');
+        final short regFValue = (short) getF();
         int zFlagSet = regFValue | 0b10000000; // keeps all other bits same but makes sure 7th is set
         if (!toOne) {
             zFlagSet = zFlagSet & 0b01111111; // otherwise set 7th bit to off (0)
         }
-        setr8('F', zFlagSet);
+        setF(zFlagSet);
     }
 
     /**
      * Subtraction Flag, Accesses the 6th bit in F register (from AF) and sets it to 1 or 0
      */
     private void setNFlag(final boolean toOne) {
-        final short regFValue = (short) getr8('F');
-        int zFlagSet = regFValue | 0b01000000;
+        final short regFValue = (short) getF();
+        int nFlagSet = regFValue | 0b01000000;
         if (!toOne) {
-            zFlagSet = zFlagSet & 0b10111111;
+            nFlagSet = nFlagSet & 0b10111111;
         }
-        setr8('F', zFlagSet);
+        setF(nFlagSet);
     }
 
     /**
      * Half Carry Flag, Accesses the 5th bit in F register (from AF) and sets it to 1 or 0
      */
     private void setHFlag(final boolean toOne) {
-        final short regFValue = (short) getr8('F');
-        int zFlagSet = regFValue | 0b00100000;
+        final short regFValue = (short) getF();
+        int hFlagSet = regFValue | 0b00100000;
         if (!toOne) {
-            zFlagSet = zFlagSet & 0b11011111;
+            hFlagSet = hFlagSet & 0b11011111;
         }
-        setr8('F', zFlagSet);
+        setF(hFlagSet);
     }
 
     /**
      * CarryFlag, Accesses the 4th bit in F register (from AF) and sets it to 1 or 0
      */
     private void setCFlag(final boolean toOne) {
-        final short regFValue = (short) getr8('F');
-        int zFlagSet = regFValue | 0b00010000;
+        final short regFValue = (short) getF();
+        int cFlagSet = regFValue | 0b00010000;
         if (!toOne) {
-            zFlagSet = zFlagSet & 0b11101111;
+            cFlagSet = cFlagSet & 0b11101111;
         }
-        setr8('F', zFlagSet);
+        setF(cFlagSet);
     }
 
     private void zFlagHFlagCFlag_8bit_overflow(final int value) {
@@ -818,288 +798,4 @@ public class CPU {
         }
     }
 
-    /**
-     * Avoids creating a nested switch statment in ld_r8_r8.
-     * <br><br>
-     * Each of them apply all registers to a specific register.
-     * @param fromRegister register we load from
-     */
-    private void ld_r8r8_caseA(final char fromRegister) {
-        switch (fromRegister) {
-            case 'A' -> System.out.println("LD A,A. We do nothing for now");
-            case 'B' -> setr8('A', getr8('B'));
-            case 'C' -> setr8('A', getr8('C'));
-            case 'D' -> setr8('A', getr8('D'));
-            case 'E' -> setr8('A', getr8('E'));
-            case 'H' -> setr8('A', getr8('H'));
-            case 'L' -> setr8('A', getr8('L'));
-            default -> throw new RuntimeException("load from register is incorrect: " + fromRegister);
-        }
-    }
-
-    private void ld_r8r8_caseB(final char fromRegister) {
-        switch (fromRegister) {
-            case 'A' -> setr8('B', getr8('A'));
-            case 'B' -> System.out.println("LD B,B. We do nothing for now");
-            case 'C' -> setr8('B', getr8('C'));
-            case 'D' -> setr8('B', getr8('D'));
-            case 'E' -> setr8('B', getr8('E'));
-            case 'H' -> setr8('B', getr8('H'));
-            case 'L' -> setr8('B', getr8('L'));
-            default -> throw new RuntimeException("load from register is incorrect: " + fromRegister);
-        }
-    }
-
-    private void ld_r8r8_caseC(final char fromRegister) {
-        switch (fromRegister) {
-            case 'A' -> setr8('C', getr8('A'));
-            case 'B' -> setr8('C', getr8('B'));
-            case 'C' -> System.out.println("LD C,C. We do nothing for now");
-            case 'D' -> setr8('C', getr8('D'));
-            case 'E' -> setr8('C', getr8('E'));
-            case 'H' -> setr8('C', getr8('H'));
-            case 'L' -> setr8('C', getr8('L'));
-            default -> throw new RuntimeException("load from register is incorrect: " + fromRegister);
-        }
-    }
-
-    private void ld_r8r8_caseD(final char fromRegister) {
-        switch (fromRegister) {
-            case 'A' -> setr8('D', getr8('A'));
-            case 'B' -> setr8('D', getr8('B'));
-            case 'C' -> setr8('D', getr8('C'));
-            case 'D' -> System.out.println("LD D,D. We do nothing for now");
-            case 'E' -> setr8('D', getr8('E'));
-            case 'H' -> setr8('D', getr8('H'));
-            case 'L' -> setr8('D', getr8('L'));
-            default -> throw new RuntimeException("load from register is incorrect: " + fromRegister);
-        }
-    }
-
-    private void ld_r8r8_caseE(final char fromRegister) {
-        switch (fromRegister) {
-            case 'A' -> setr8('E', getr8('A'));
-            case 'B' -> setr8('E', getr8('B'));
-            case 'C' -> setr8('E', getr8('E'));
-            case 'D' -> setr8('E', getr8('D'));
-            case 'E' -> System.out.println("LD E,E. We do nothing for now");
-            case 'H' -> setr8('E', getr8('H'));
-            case 'L' -> setr8('E', getr8('L'));
-            default -> throw new RuntimeException("load from register is incorrect: " + fromRegister);
-        }
-    }
-
-    private void ld_r8r8_caseH(final char fromRegister) {
-        switch (fromRegister) {
-            case 'A' -> setr8('H', getr8('A'));
-            case 'B' -> setr8('H', getr8('B'));
-            case 'C' -> setr8('H', getr8('H'));
-            case 'D' -> setr8('H', getr8('D'));
-            case 'E' -> setr8('H', getr8('E'));
-            case 'H' -> System.out.println("LD H,H. We do nothing for now");
-            case 'L' -> setr8('H', getr8('L'));
-            default -> throw new RuntimeException("load from register is incorrect: " + fromRegister);
-        }
-    }
-
-    private void ld_r8r8_caseL(final char fromRegister) {
-        switch (fromRegister) {
-            case 'A' -> setr8('L', getr8('A'));
-            case 'B' -> setr8('L', getr8('B'));
-            case 'C' -> setr8('L', getr8('L'));
-            case 'D' -> setr8('L', getr8('D'));
-            case 'E' -> setr8('L', getr8('E'));
-            case 'H' -> setr8('L', getr8('H'));
-            case 'L' -> System.out.println("LD L,L. We do nothing for now");
-            default -> throw new RuntimeException("load from register is incorrect: " + fromRegister);
-        }
-    }
-
-
-    // TODO: is there a way to run a loop through A to L and run a single method?
-    // they are all repeated, apart from accessing different registers. Can this be condensed to a for loop?
-    private void inc_r8_caseA() {
-        short value = (short) getr8('A');
-        value++;
-        setr8('A', value);
-
-        setNFlag(false); // 0
-        zFlagHFlag_8bit_overflow(value);
-    }
-
-    private void inc_r8_caseB() {
-        short value = (short) getr8('B');
-        value++;
-        setr8('B', value);
-
-        setNFlag(false); // 0
-        zFlagHFlag_8bit_overflow(value);
-    }
-
-    private void inc_r8_caseC() {
-        short value = (short) getr8('C');
-        value++;
-        setr8('C', value);
-
-        setNFlag(false); // 0
-        zFlagHFlag_8bit_overflow(value);
-    }
-
-    private void inc_r8_caseD() {
-        short value = (short) getr8('D');
-        value++;
-        setr8('D', value);
-
-        setNFlag(false); // 0
-        zFlagHFlag_8bit_overflow(value);
-    }
-
-    private void inc_r8_caseE() {
-        short value = (short) getr8('E');
-        value++;
-        setr8('E', value);
-
-        setNFlag(false); // 0
-        zFlagHFlag_8bit_overflow(value);
-    }
-
-    private void inc_r8_caseH() {
-        short value = (short) getr8('H');
-        value++;
-        setr8('H', value);
-
-        setNFlag(false); // 0
-        zFlagHFlag_8bit_overflow(value);
-    }
-
-    private void inc_r8_caseL() {
-        short value = (short) getr8('L');
-        value++;
-        setr8('L', value);
-
-        setNFlag(false); // 0
-        zFlagHFlag_8bit_overflow(value);
-    }
-
-    private void dec_r8_caseA() {
-        short value = (short) getr8('A');
-        value--;
-        setr8('A', value);
-
-        setNFlag(true); // 1
-        zFlagHFlag_8bit_borrow(value);
-    }
-
-    private void dec_r8_caseB() {
-        short value = (short) getr8('B');
-        value--;
-        setr8('B', value);
-
-        setNFlag(true); // 1
-        zFlagHFlag_8bit_borrow(value);
-    }
-
-    private void dec_r8_caseC() {
-        short value = (short) getr8('C');
-        value--;
-        setr8('C', value);
-
-        setNFlag(true); // 1
-        zFlagHFlag_8bit_borrow(value);
-    }
-
-    private void dec_r8_caseD() {
-        short value = (short) getr8('D');
-        value--;
-        setr8('D', value);
-
-        setNFlag(true); // 1
-        zFlagHFlag_8bit_borrow(value);
-    }
-
-    private void dec_r8_caseE() {
-        short value = (short) getr8('E');
-        value--;
-        setr8('E', value);
-
-        setNFlag(true); // 1
-        zFlagHFlag_8bit_borrow(value);
-    }
-
-    private void dec_r8_caseH() {
-        short value = (short) getr8('H');
-        value--;
-        setr8('H', value);
-
-        setNFlag(true); // 1
-        zFlagHFlag_8bit_borrow(value);
-    }
-
-    private void dec_r8_caseL() {
-        short value = (short) getr8('L');
-        value--;
-        setr8('L', value);
-
-        setNFlag(true); // 1
-        zFlagHFlag_8bit_borrow(value);
-    }
-
-
-    // TODO: these are all literally the same code block..
-    private void add_ar8_caseA() {
-        final int aValue = getr8('A');
-        final int addedValue = aValue * 2;
-        setr8('A', addedValue);
-        zFlagHFlagCFlag_8bit_overflow(addedValue);
-    }
-
-    private void add_ar8_caseB() {
-        final int aValue = getr8('A');
-        final int bValue = getr8('B');
-        // we could for loop through r8's. But we lose the instant access
-
-        final int addedValue = aValue + bValue;
-        setr8('A', addedValue);
-        zFlagHFlagCFlag_8bit_overflow(addedValue);
-    }
-
-    private void add_ar8_caseC() {
-        final int aValue = getr8('A');
-        final int cValue = getr8('C');
-        final int addedValue = aValue + cValue;
-        setr8('A', addedValue);
-        zFlagHFlagCFlag_8bit_overflow(addedValue);
-    }
-
-    private void add_ar8_caseD() {
-        final int aValue = getr8('A');
-        final int dValue = getr8('D');
-        final int addedValue = aValue + dValue;
-        setr8('A', addedValue);
-        zFlagHFlagCFlag_8bit_overflow(addedValue);
-    }
-
-    private void add_ar8_caseE() {
-        final int aValue = getr8('A');
-        final int eValue = getr8('E');
-        final int addedValue = aValue + eValue;
-        setr8('A', addedValue);
-        zFlagHFlagCFlag_8bit_overflow(addedValue);
-    }
-
-    private void add_ar8_caseH() {
-        final int aValue = getr8('A');
-        final int hValue = getr8('H');
-        final int addedValue = aValue + hValue;
-        setr8('A', addedValue);
-        zFlagHFlagCFlag_8bit_overflow(addedValue);
-    }
-
-    private void add_ar8_caseL() {
-        final int aValue = getr8('A');
-        final int lValue = getr8('L');
-        final int addedValue = aValue + lValue;
-        setr8('A', addedValue);
-        zFlagHFlagCFlag_8bit_overflow(addedValue);
-    }
 }

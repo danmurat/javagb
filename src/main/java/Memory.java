@@ -312,8 +312,8 @@ public class Memory
      * @param value the value we want to write
      */
     public void writeWord(final int address, final int value) {
-        int value1 = 0x00FF & value;        // least significant byte only
-        int value2 = (0xFF00 & value) >> 8; // most significant byte, then bit shifted to become an actual byte
+        final int value1 = 0x00FF & value;        // least significant byte only
+        final int value2 = (0xFF00 & value) >> 8; // most significant byte, then bit shifted to become an actual byte
         writeByte(address, (short)value1);
         writeByte(address+1, (short)value2);
     }
@@ -372,7 +372,7 @@ public class Memory
      */
     private void loadRom(String romName) throws IOException
     {
-        FileInputStream romFile = new FileInputStream(ROM_PATH + romName);
+        final FileInputStream romFile = new FileInputStream(ROM_PATH + romName);
         int addressCounter = 0;
         while (romFile.available() > 0)
         {
