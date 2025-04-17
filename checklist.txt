@@ -21,3 +21,18 @@ Thu 17th Apr:
 We still have a lot of repeated code. Especially where we essentially do the same thing but access
 a different register. Reducing this to a for loop (from a to l) would reduce our code by prob 20-30%,
 but then our accesses become iterative instead of instant...
+- above is done...
+
+Note to remember!:
+In java, we can't represent unsigned nums. In our project, our registers don't actually have a limit and
+don't actually overflow! So when we set the flags, our values don't actually cycle back to 0. So for our 8bit reg
+going over xFF just puts it at x100. We set the C flag, but the value stays at 0x100. We NEED to actually be resetting
+our values.
+
+reset our register values on overflows [DONE]
+implement the 9 opcodes for ADC instruction [DONE]
+implement the 9 opcodes for SUB instruction [DONE]
+implement the 9 opcodes for SBC instruction [in progress]
+
+
+Also, for the DEC, sub methods, we don't really handle what we do if our registers go below 0?

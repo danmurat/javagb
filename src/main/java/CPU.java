@@ -5,20 +5,7 @@
  */
 public class CPU {
     private Memory memory;
-    /*
-     These can be either accessed as 16 bit (AF) or 8 bit individually (just A)
 
-     My first thoughts are just to keep these as 16bit (AF...). When accessing these
-     through instructions, we should be able to access the correct register regardless (with correct address)
-
-     I'm wondering however, should these be arrays or just numbers? Registers are literally memory inside the cpu,
-     so they will have their own addresses right?
-
-     https://electronics.stackexchange.com/questions/60176/microprocessors-microcontrollers-do-registers-have-addresses
-
-     The link above describes some differences between registers. But typically in ARM (or those with SP, PC) they
-     have NO addresses. So they just hold values.
-     */
     private int AF; // A = high, F = lo (Lower 8 bits (F) hold Flag information)
     private int BC;
     private int DE;
@@ -27,67 +14,6 @@ public class CPU {
     private int SP;
     private int PC;
     private int pcAccess = PC + 1;
-
-    // flags TODO: consider removing, because F register bits hold flag info (bit 7 = z flag, etc..)
-    /**
-     * bit = 7, name = zero flag
-     * true if operation result = 0
-     */
-    private boolean z;
-    /**
-     * bit = 6, name = subtraction flag
-     * used by DAA instruction only!
-     * n indicates whether previous instruction has been a subtraction
-     */
-    private boolean n;
-    /**
-     * bit = 5, name = half carry flag
-     * used by DAA instruction only!
-     * h indicates carry for lower 4 bits of result
-     */
-    private boolean h;
-    /**
-     * bit = 4, name = carryFlag
-     *
-     * Is set in these cases:
-     * When the result of an 8-bit addition is higher than $FF.
-     * When the result of a 16-bit addition is higher than $FFFF.
-     * When the result of a subtraction or comparison is lower than zero (like in Z80 and x86 CPUs, but unlike in 65XX and ARM CPUs).
-     * When a rotate/shift operation shifts out a “1” bit.
-     * Used by conditional jumps and instructions such as ADC, SBC, RL, RLA, etc.
-     */
-    private boolean c;
-
-
-    /*
-    Then we need to sort out how we access opcodes for instruction usage.
-    In the past we tried a hash map that linked that opcode address to our instruction methods. We thought
-    that we were being smart by having O(1) access to the instruction, but I'm thinking now that this was
-    adding an unnecessary optimisation since we only really have 512 opcodes. So we saved int theory save negligible
-    runtime from this access. With the overhead of hashmaps however, we probably caused the runtime to actually be
-    slower than just using arrays.
-
-    Not only that, we can get instant access from arrays anyway because an opcode will point to an index. The opcodes
-    are known so there would be no searching, just instant accesses. I had no idea what I was doing back then...
-     */
-
-    // what types should these be? I want each to CALL an instruction..
-    // we could make a static instruction class (or have cpu static) and assign each method to an index
-
-    // we have 2 options, create an array of runnables (which we can use lambda expressions to call methods () -> ld_A()
-    // or keep as ints and have another method use switch cases to call instructions
-
-    /*
-    We'll use an array of runnables because we can set it up once and all values are saved.
-    Keeping it as an int[], every time we want to run an instruction we would call the switch case to see
-    what the opcode is and run that method..
-    Whereas with runnable[] we can set up each opcode with its method and it is saved already (i think?) So
-    when we constantly run instructions we avoid having to lookup through switch statements.
-    NOTE: JVM seems to optimise int switch cases to O(1) anyway
-
-    If we just switch case, we don't need this array...
-     */
-
 
     /*
     HANDLING CLOCK CYCLES:
@@ -128,6 +54,10 @@ public class CPU {
         totalMCycles = 0;
     }
 
+    /**
+     * Main cpu execution method.
+     * Reads opcode, finds and runs correct instruction.
+     */
     public void executeInstruction() {
         // opcode is the value at the memory address specified by program counter
         // fetch
@@ -305,9 +235,40 @@ public class CPU {
             case 0x85 -> add_a_r8('L');
             case 0x86 -> add_a_phl();
             case 0x87 -> add_a_r8('A');
+            case 0x88 -> adc_a_r8('B');
+            case 0x89 -> adc_a_r8('C');
+            case 0x8A -> adc_a_r8('D');
+            case 0x8B -> adc_a_r8('E');
+            case 0x8C -> adc_a_r8('H');
+            case 0x8D -> adc_a_r8('L');
+            case 0x8E -> adc_a_phl();
+            case 0x8F -> adc_a_r8('A');
+
+            // --- ROW 9 ---
+            case 0x90 -> sub_a_r8('B');
+            case 0x91 -> sub_a_r8('C');
+            case 0x92 -> sub_a_r8('D');
+            case 0x93 -> sub_a_r8('E');
+            case 0x94 -> sub_a_r8('H');
+            case 0x95 -> sub_a_r8('L');
+            case 0x96 -> sub_a_phl();
+            case 0x97 -> sub_a_r8('A');
+            case 0x98 -> sbc_a_r8('B');
+            case 0x99 -> sbc_a_r8('C');
+            case 0x9A -> sbc_a_r8('D');
+            case 0x9B -> sbc_a_r8('E');
+            case 0x9C -> sbc_a_r8('H');
+            case 0x9D -> sbc_a_r8('L');
+            case 0x9E -> sbc_a_phl();
+            case 0x9F -> sbc_a_r8('A');
 
             // --- ROW C ---
             case 0xC6 -> add_a_n8();
+            case 0xCE -> adc_a_n8();
+
+            // --- ROW D ---
+            case 0xD6 -> sub_a_n8();
+            case 0xDE -> sbc_a_n8();
 
             // --- ROW E ---
             case 0xE0 -> ldh_pn16_a();
@@ -341,12 +302,12 @@ public class CPU {
 
     // --- INSTRUCTIONS ---
     // with help from https://rgbds.gbdev.io/docs/v0.9.1/gbz80.7#INSTRUCTION_REFERENCE
-
-
-    // --- LD 's ---
     // r = register, so r8 = 8bit reg, r16 = 16bit. pr = the address a register points to
     // n = mem value at PC, n16 is the little endian word (handled in read/writeWord())
     // snake_casing for now since camelCase looks extremely bad for these names
+
+
+    // --- LD 's ---
 
     private void ld_r8_r8(final char toRegister, final char fromRegister) {
         setr8(toRegister, getr8(fromRegister));
@@ -559,7 +520,7 @@ public class CPU {
         final int r8Value = getr8(register);
         final int addedValue = aValue + r8Value;
         setr8('A', addedValue);
-        zFlagHFlagCFlag_8bit_overflow(addedValue);
+        zFlagHFlagCFlag_8bit_overflow('A', addedValue);
         setNFlag(false);
 
         totalMCycles += 1;
@@ -573,7 +534,7 @@ public class CPU {
         setr8('A', addedValue);
 
         setNFlag(false);
-        zFlagHFlagCFlag_8bit_overflow(addedValue);
+        zFlagHFlagCFlag_8bit_overflow('A', addedValue);
 
         totalMCycles += 2;
         PC += 2;
@@ -586,7 +547,7 @@ public class CPU {
         setr8('A', addedValue);
 
         setNFlag(false);
-        zFlagHFlagCFlag_8bit_overflow(addedValue);
+        zFlagHFlagCFlag_8bit_overflow('A', addedValue);
 
         totalMCycles += 2;
         PC += 1;
@@ -608,25 +569,119 @@ public class CPU {
         switch (registers) {
             case "BC" -> {
                 HL += BC;
-                hFlagCFlag_16bit_overflow(HL);
+                hFlagCFlag_16bit_overflow("HL", HL);
             }
             case "DE" -> {
                 HL += DE;
-                hFlagCFlag_16bit_overflow(HL);
+                hFlagCFlag_16bit_overflow("HL", HL);
             }
             case "HL" -> {
                 HL += HL;
-                hFlagCFlag_16bit_overflow(HL);
+                hFlagCFlag_16bit_overflow("HL", HL);
             }
             case "SP" -> {
                 HL += SP;
-                hFlagCFlag_16bit_overflow(HL);
+                hFlagCFlag_16bit_overflow("HL", HL);
             }
             default -> throw new RuntimeException("invalid register pair: " + registers + " for ADD HL,r16");
         }
         setNFlag(false);
         totalMCycles += 2;
         PC += 1;
+    }
+
+    // ADC instructions
+
+    private void adc_a_r8(final char register) {
+        // carry flag simply holds the extra bit that was carried over. e.g xFF + 1 goes to x00, and carry
+        // flag holds that extra bit. So when it's set, we need to add it back
+        setr8('A', getr8('A') + 1); // 1 is the carry bit
+        setCFlag(false);    // just used, so make it false
+        add_a_r8(register); // then do the remaining addition (which does flag checks again + cycle/pc increments)
+    }
+
+    private void adc_a_phl() {
+        setr8('A', getr8('A') + 1);
+        setCFlag(false);
+        add_a_phl();
+    }
+
+    private void adc_a_n8() {
+        setr8('A', getr8('A') + 1);
+        setCFlag(false);
+        add_a_n8();
+    }
+
+    // SUB instructions
+
+
+    private void sub_a_r8(final char register) { // for a case, z flag should always be true, and h/c flags to false
+        final short aValue = (short) getr8('A'); // below code should still work correct for a case regardless
+        final short r8Value = (short) getr8(register);
+        final int subValue = aValue - r8Value;
+        setr8('A', subValue);
+
+        zFlagHFlag_8bit_borrow(subValue); // use this, since we can check c flag in this method
+        setNFlag(true);
+        if (r8Value > aValue) {
+            setCFlag(true);
+        }
+
+        totalMCycles += 1;
+        PC += 1;
+    }
+
+    private void sub_a_phl() {
+        final short aValue = (short) getr8('A');
+        final short addressValue = memory.readByte(HL);
+        final int subValue = aValue - addressValue;
+        setr8('A', subValue);
+
+        zFlagHFlag_8bit_borrow(subValue);
+        setNFlag(true);
+        if (addressValue > aValue) {
+            setCFlag(true);
+        }
+
+        totalMCycles += 2;
+        PC += 1;
+    }
+
+    private void sub_a_n8() {
+        final short aValue = (short) getr8('A');
+        final short addressValue = memory.readByte(pcAccess);
+        final int subValue = aValue - addressValue;
+        setr8('A', subValue);
+
+        zFlagHFlag_8bit_borrow(subValue);
+        setNFlag(true);
+        if (addressValue > aValue) {
+            setCFlag(true);
+        }
+
+        totalMCycles += 2;
+        PC += 2;
+    }
+
+
+    // SBC instructions
+
+    private void sbc_a_r8(final char register) {
+        setr8('A', getr8('A') - 1); // carry flag use
+        setCFlag(false);
+        sub_a_r8(register);
+    }
+
+    private void sbc_a_phl() {
+        setr8('A', getr8('A') - 1); // carry flag use
+        setCFlag(false);
+        sub_a_phl();
+    }
+
+    private void sbc_a_n8() {
+        setr8('A', getr8('A') - 1); // carry flag use
+        setCFlag(false);
+        sub_a_n8();
     }
 
     // ------ HELPER METHODS --------
@@ -755,11 +810,14 @@ public class CPU {
         setF(cFlagSet);
     }
 
-    private void zFlagHFlagCFlag_8bit_overflow(final int value) {
+    // Flag set cases
+
+    private void zFlagHFlagCFlag_8bit_overflow(final char register, final int value) {
         if (value == 0) {
             setZFlag(true);
         } else if (value > 0xFF) {
             setCFlag(true);
+            setr8(register, 0); // reset to 0 so value remains correct
         } else if (value > 0xF) {
             setHFlag(true);
         }
@@ -782,6 +840,7 @@ public class CPU {
                             // == 1111 == 0xF
     }
 
+    // this is only used by SP for now (which is 16 bits so doesn't make much sense and can't overflow?)
     private void hFlagCFlag_8bit_overflow(final int value) {
         if (value > 0xFF) {
             setCFlag(true);
@@ -790,9 +849,10 @@ public class CPU {
         }
     }
 
-    private void hFlagCFlag_16bit_overflow(final int value) {
+    private void hFlagCFlag_16bit_overflow(final String registers, final int value) {
         if (value > 0xFFFF) {
             setCFlag(true);
+            setr16(registers, 0); // reset since we reach unsigned 16bit limit
         } else if (value > 0xFFF) {
             setHFlag(true);
         }
