@@ -32,7 +32,13 @@ our values.
 reset our register values on overflows [DONE]
 implement the 9 opcodes for ADC instruction [DONE]
 implement the 9 opcodes for SUB instruction [DONE]
-implement the 9 opcodes for SBC instruction [in progress]
+implement the 9 opcodes for SBC instruction [DONE]
 
 
 Also, for the DEC, sub methods, we don't really handle what we do if our registers go below 0?
+
+Fri 18th Apr:
+- implement AND instructions [DONE]
+- implement XOR instructions [DONE]
+- implement OR instructions [DONE]
+- implement CP instructions [DONE]

@@ -64,8 +64,8 @@ public class CPU {
         short opcode = memory.readByte(PC);
 
         if (opcode == 0xCB) {
-            // TODO: should we be incrememnting pc? or just access the next pc?
-            short prefixOpcode = memory.readByte(PC+1); // access next pc for now
+            PC += 1; // we need another opcode from next byte
+            short prefixOpcode = memory.readByte(PC);
             prefixedInstructionCall(prefixOpcode);
         } else {
             instructionCall(opcode);
@@ -262,6 +262,41 @@ public class CPU {
             case 0x9E -> sbc_a_phl();
             case 0x9F -> sbc_a_r8('A');
 
+            // --- ROW A ---
+            case 0xA0 -> and_a_r8('B');
+            case 0xA1 -> and_a_r8('C');
+            case 0xA2 -> and_a_r8('D');
+            case 0xA3 -> and_a_r8('E');
+            case 0xA4 -> and_a_r8('H');
+            case 0xA5 -> and_a_r8('L');
+            case 0xA6 -> and_a_phl();
+            case 0xA7 -> and_a_r8('A');
+            case 0xA8 -> xor_a_r8('B');
+            case 0xA9 -> xor_a_r8('C');
+            case 0xAA -> xor_a_r8('D');
+            case 0xAB -> xor_a_r8('E');
+            case 0xAC -> xor_a_r8('H');
+            case 0xAD -> xor_a_r8('L');
+            case 0xAE -> xor_a_phl();
+            case 0xAF -> xor_a_r8('A');
+
+            // --- ROW B ---
+            case 0xB0 -> or_a_r8('B');
+            case 0xB1 -> or_a_r8('C');
+            case 0xB2 -> or_a_r8('D');
+            case 0xB3 -> or_a_r8('E');
+            case 0xB4 -> or_a_r8('H');
+            case 0xB5 -> or_a_r8('L');
+            case 0xB6 -> or_a_phl();
+            case 0xB7 -> or_a_r8('A');
+            case 0xB8 -> cp_a_r8('B');
+            case 0xB9 -> cp_a_r8('C');
+            case 0xBA -> cp_a_r8('D');
+            case 0xBB -> cp_a_r8('E');
+            case 0xBC -> cp_a_r8('H');
+            case 0xBD -> cp_a_r8('L');
+            case 0xBE -> cp_a_phl();
+
             // --- ROW C ---
             case 0xC6 -> add_a_n8();
             case 0xCE -> adc_a_n8();
@@ -273,13 +308,17 @@ public class CPU {
             // --- ROW E ---
             case 0xE0 -> ldh_pn16_a();
             case 0xE2 -> ldh_pc_a();
+            case 0xE6 -> and_a_n8();
             case 0xE8 -> add_sp_e8();
             case 0xEA -> ld_pn16_a();
+            case 0xEE -> xor_a_n8();
 
             // --- ROW F ---
             case 0xF0 -> ldh_a_pn16();
             case 0xF2 -> ldh_a_pc();
+            case 0xF6 -> or_a_n8();
             case 0xFA -> ld_a_pn16();
+            case 0xFE -> cp_a_n8();
 
             default -> throw new RuntimeException("invalid opcode: " + opcode);
         }
@@ -291,11 +330,8 @@ public class CPU {
      */
     private void prefixedInstructionCall(final short opcode) {
         switch (opcode) {
-            case 0x00:
-                System.out.println("implement the prefixed opcodes!");
-                break;
-            default:
-                throw new RuntimeException("invalid opcode: " + opcode);
+            case 0x00 -> System.out.println("implement the prefixed opcodes!");
+            default -> throw new RuntimeException("invalid opcode: " + opcode);
         }
     }
 
@@ -684,6 +720,169 @@ public class CPU {
         sub_a_n8();
     }
 
+    // AND instructions
+
+    // is it worth it to reduce these methods to 1 (since they are almost identical)?
+    private void and_a_r8(final char register) {
+        final short aValue = (short) getr8('A');
+        final short r8Value = (short) getr8(register);
+        final int andResult = aValue & r8Value;
+        setr8('A', andResult);
+
+        andFlagSets(andResult);
+
+        totalMCycles += 1;
+        PC += 1;
+    }
+
+    private void and_a_phl() {
+        final short aValue = (short) getr8('A');
+        final short addressValue = memory.readByte(HL);
+        final int andResult = aValue & addressValue;
+        setr8('A', andResult);
+
+        andFlagSets(andResult);
+
+        totalMCycles += 2;
+        PC += 1;
+    }
+
+    private void and_a_n8() {
+        final short aValue = (short) getr8('A');
+        final short addressValue = memory.readByte(pcAccess);
+        final int andResult = aValue & addressValue;
+        setr8('A', andResult);
+
+        andFlagSets(andResult);
+
+        totalMCycles += 2;
+        PC += 2;
+    }
+
+    // XOR instructions
+
+    private void xor_a_r8(final char register) {
+        final short aValue = (short) getr8('A');
+        final short r8Value = (short) getr8(register);
+        final int xorResult = aValue ^ r8Value;
+        setr8('A', xorResult);
+
+        xorFlagSets(xorResult);
+
+        totalMCycles += 1;
+        PC += 1;
+    }
+
+    private void xor_a_phl() {
+        final short aValue = (short) getr8('A');
+        final short addressValue = memory.readByte(HL);
+        final int xorResult = aValue ^ addressValue;
+        setr8('A', xorResult);
+
+        xorFlagSets(xorResult);
+
+        totalMCycles += 2;
+        PC += 1;
+    }
+
+    private void xor_a_n8() {
+        final short aValue = (short) getr8('A');
+        final short addressValue = memory.readByte(pcAccess);
+        final int xorResult = aValue ^ addressValue;
+        setr8('A', xorResult);
+
+        xorFlagSets(xorResult);
+
+        totalMCycles += 2;
+        PC += 2;
+    }
+
+    // OR instructions
+
+    private void or_a_r8(final char register) {
+        final short aValue = (short) getr8('A');
+        final short r8Value = (short) getr8(register);
+        final int orResult = aValue | r8Value;
+        setr8('A', orResult);
+
+        // uses the same flags
+        xorFlagSets(orResult);
+
+        totalMCycles += 1;
+        PC += 1;
+    }
+
+    private void or_a_phl() {
+        final short aValue = (short) getr8('A');
+        final short addressValue = memory.readByte(HL);
+        final int orResult = aValue | addressValue;
+        setr8('A', orResult);
+
+        xorFlagSets(orResult);
+
+        totalMCycles += 2;
+        PC += 1;
+    }
+
+    private void or_a_n8() {
+        final short aValue = (short) getr8('A');
+        final short addressValue = memory.readByte(pcAccess);
+        final int orResult = aValue | addressValue;
+        setr8('A', orResult);
+
+        xorFlagSets(orResult);
+
+        totalMCycles += 2;
+        PC += 2;
+    }
+
+    // CP instructions
+
+    // does the exact same thing as SUB but doesn't save the result
+    private void cp_a_r8(final char register) {
+        final short aValue = (short) getr8('A');
+        final short r8Value = (short) getr8(register);
+        final int subValue = aValue - r8Value;
+
+        zFlagHFlag_8bit_borrow(subValue);
+        setNFlag(true);
+        if (r8Value > aValue) {
+            setCFlag(true);
+        }
+
+        totalMCycles += 1;
+        PC += 1;
+    }
+
+    private void cp_a_phl() {
+        final short aValue = (short) getr8('A');
+        final short addressValue = memory.readByte(HL);
+        final int subValue = aValue - addressValue;
+
+        zFlagHFlag_8bit_borrow(subValue);
+        setNFlag(true);
+        if (addressValue > aValue) {
+            setCFlag(true);
+        }
+
+        totalMCycles += 2;
+        PC += 1;
+    }
+
+    private void cp_a_n8() {
+        final short aValue = (short) getr8('A');
+        final short addressValue = memory.readByte(pcAccess);
+        final int subValue = aValue - addressValue;
+
+        zFlagHFlag_8bit_borrow(subValue);
+        setNFlag(true);
+        if (addressValue > aValue) {
+            setCFlag(true);
+        }
+
+        totalMCycles += 2;
+        PC += 2;
+    }
     // ------ HELPER METHODS --------
 
     /**
@@ -831,6 +1030,7 @@ public class CPU {
         }
     }
 
+    // TODO: how are we handling when result goes under 0?
     private void zFlagHFlag_8bit_borrow(final int value) {
         if (value == 0) {
             setZFlag(true);
@@ -856,6 +1056,21 @@ public class CPU {
         } else if (value > 0xFFF) {
             setHFlag(true);
         }
+    }
+
+
+    private void andFlagSets(final int result) {
+        if (result == 0) setZFlag(true);
+        setNFlag(false);
+        setHFlag(true);
+        setCFlag(false);
+    }
+
+    private void xorFlagSets(final int result) {
+        if (result == 0) setZFlag(true);
+        setNFlag(false);
+        setHFlag(false);
+        setCFlag(false);
     }
 
 }
