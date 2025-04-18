@@ -42,3 +42,7 @@ Fri 18th Apr:
 - implement XOR instructions [DONE]
 - implement OR instructions [DONE]
 - implement CP instructions [DONE]
+
+- implement PUSH/POP r16 [DONE]
+- implement JP instructions [DONE]
+- implement JR isntructions [DONE]

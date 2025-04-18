@@ -4,6 +4,16 @@
  * Will hold ALL the instructions (bit manipulations), and registers from the unit.
  */
 public class CPU {
+    // bit switches for the F register flags (7=z, 6=n, 5=h, 4=c)
+    private static final int BIT_7_ON = 0b10000000;
+    private static final int BIT_7_OFF = 0b01111111;
+    private static final int BIT_6_ON = 0b01000000;
+    private static final int BIT_6_OFF = 0b10111111;
+    private static final int BIT_5_ON = 0b00100000;
+    private static final int BIT_5_OFF = 0b11011111;
+    private static final int BIT_4_ON = 0b00010000;
+    private static final int BIT_4_OFF = 0b11101111;
+
     private Memory memory;
 
     private int AF; // A = high, F = lo (Lower 8 bits (F) hold Flag information)
@@ -100,12 +110,15 @@ public class CPU {
             case 0x04 -> inc_r8('B');
             case 0x05 -> dec_r8('B');
             case 0x06 -> ld_r8_n8('B');
+            case 0x07 -> throw new RuntimeException("implement RLCA");
+            case 0x08 -> throw new RuntimeException("implement LD [a16],SP");
             case 0x09 -> add_hl_r16("BC");
             case 0x0A -> ld_a_pr16("BC");
             case 0x0B -> dec_r16("BC");
             case 0x0C -> inc_r8('C');
             case 0x0D -> dec_r8('C');
             case 0x0E -> ld_r8_n8('C');
+            case 0x0F -> throw new RuntimeException("implement RRCA");
 
             // --- ROW 1 ---
             case 0x10 -> System.out.println("STOP INSTRUCTION");
@@ -115,44 +128,51 @@ public class CPU {
             case 0x14 -> inc_r8('D');
             case 0x15 -> dec_r8('D');
             case 0x16 -> ld_r8_n8('D');
+            case 0x17 -> throw new RuntimeException("implement RLA");
+            case 0x18 -> jr_e8();
             case 0x19 -> add_hl_r16("DE");
             case 0x1A -> ld_a_pr16("DE");
             case 0x1B -> dec_r16("DE");
             case 0x1C -> inc_r8('E');
             case 0x1D -> dec_r8('E');
             case 0x1E -> ld_r8_n8('E');
+            case 0x1F -> throw new RuntimeException("implement RRA");
 
             //--- ROW 2 ---
-            case 0x20 -> System.out.println("JR instruction"); // TODO
+            case 0x20 -> jr_nz_e8();
             case 0x21 -> ld_r16_n16("HL");
             case 0x22 -> ld_pr16_a("HL+");
             case 0x23 -> inc_r16("HL");
             case 0x24 -> inc_r8('H');
             case 0x25 -> dec_r8('H');
             case 0x26 -> ld_r8_n8('H');
+            case 0x27 -> throw new RuntimeException("implement DAA");
+            case 0x28 -> jr_z_e8();
             case 0x29 -> add_hl_r16("HL");
             case 0x2A -> ld_a_pr16("HL+");
             case 0x2B -> dec_r16("HL");
             case 0x2C -> inc_r8('L');
             case 0x2D -> dec_r8('L');
             case 0x2E -> ld_r8_n8('L');
+            case 0x2F -> throw new RuntimeException("implement CPL");
 
             // --- ROW 3 ---
-            case 0x30 -> System.out.println("JR instruction");
+            case 0x30 -> jr_nc_e8();
             case 0x31 -> ld_r16_n16("SP");
             case 0x32 -> ld_pr16_a("HL-");
             case 0x33 -> inc_r16("SP");
             case 0x34 -> inc_phl();
             case 0x35 -> dec_phl();
             case 0x36 -> ld_phl_n8();
+            case 0x37 -> throw new RuntimeException("implement SCF");
+            case 0x38 -> jr_c_e8();
             case 0x39 -> add_hl_r16("SP");
             case 0x3A -> ld_a_pr16("HL-");
             case 0x3B -> dec_r16("SP");
             case 0x3C -> inc_r8('A');
             case 0x3D -> dec_r8('A');
             case 0x3E -> ld_r8_n8('A');
-
-                // TODO: ALL 0x..A up to 3A
+            case 0x3F -> throw new RuntimeException("implement CCF");
 
             // --- ROW 4 ---
             case 0x40 -> ld_r8_r8('B', 'B');
@@ -296,26 +316,49 @@ public class CPU {
             case 0xBC -> cp_a_r8('H');
             case 0xBD -> cp_a_r8('L');
             case 0xBE -> cp_a_phl();
+            case 0xBF -> cp_a_r8('A');
 
             // --- ROW C ---
+            case 0xC0 -> throw new RuntimeException("implement RET NZ");
+            case 0xC1 -> pop_r16('B', 'C');
+            case 0xC2 -> jp_nz_n16();
+            case 0xC3 -> jp_n16();
+            case 0xC4 -> throw new RuntimeException("implement CALL NZ,a16");
+            case 0xC5 -> push_r16('B', 'C');
             case 0xC6 -> add_a_n8();
+            case 0xC7 -> throw new RuntimeException("implement RST $00");
+            case 0xC8 -> throw new RuntimeException("implement RET Z");
+            case 0xC9 -> throw new RuntimeException("implement RST $00");
+            case 0xCA -> jp_z_n16();
+            case 0xCB -> throw new RuntimeException("implement RST $00");
+            case 0xCC -> throw new RuntimeException("implement RST $00");
+            case 0xCD -> throw new RuntimeException("implement RST $00");
             case 0xCE -> adc_a_n8();
 
             // --- ROW D ---
+            case 0xD1 -> pop_r16('D', 'E');
+            case 0xD2 -> jp_nc_n16();
+            case 0xD5 -> push_r16('D', 'E');
             case 0xD6 -> sub_a_n8();
+            case 0xDA -> jp_c_n16();
             case 0xDE -> sbc_a_n8();
 
             // --- ROW E ---
             case 0xE0 -> ldh_pn16_a();
+            case 0xE1 -> pop_r16('H', 'L');
             case 0xE2 -> ldh_pc_a();
+            case 0xE5 -> push_r16('H', 'L');
             case 0xE6 -> and_a_n8();
             case 0xE8 -> add_sp_e8();
+            case 0xE9 -> jp_hl();
             case 0xEA -> ld_pn16_a();
             case 0xEE -> xor_a_n8();
 
             // --- ROW F ---
             case 0xF0 -> ldh_a_pn16();
+            case 0xF1 -> pop_af();
             case 0xF2 -> ldh_a_pc();
+            case 0xF5 -> push_r16('A', 'F');
             case 0xF6 -> or_a_n8();
             case 0xFA -> ld_a_pn16();
             case 0xFE -> cp_a_n8();
@@ -650,7 +693,6 @@ public class CPU {
 
     // SUB instructions
 
-
     private void sub_a_r8(final char register) { // for a case, z flag should always be true, and h/c flags to false
         final short aValue = (short) getr8('A'); // below code should still work correct for a case regardless
         final short r8Value = (short) getr8(register);
@@ -883,6 +925,151 @@ public class CPU {
         totalMCycles += 2;
         PC += 2;
     }
+
+
+    // PUSH/POP instructions
+
+    // we already have flags set inside AF, so no need to do anything else for PUSH AF
+    private void push_r16(final char highRegister, final char lowRegister) {
+        SP--;
+        memory.writeByte(SP, (short) getr8(highRegister));
+        SP--;
+        memory.writeByte(SP, (short) getr8(lowRegister));
+
+        totalMCycles += 4;
+        PC += 1;
+    }
+
+    private void pop_r16(final char highRegister, final char lowRegister) {
+        final short firstSPAddressValue = memory.readByte(SP);
+        setr8(lowRegister, firstSPAddressValue);
+        SP++;
+
+        final short secondSPAddressValue = memory.readByte(SP);
+        setr8(highRegister, secondSPAddressValue);
+        SP++;
+
+        totalMCycles += 3;
+        PC += 1;
+    }
+
+    // since AF become new values,we need to remember and place the flags back to the new value
+    private void pop_af() {
+        // first save flags before popping
+        final boolean zFlagOn = zFlagOn();
+        final boolean nFlagOn = nFlagOn();
+        final boolean hFlagOn = hFlagOn();
+        final boolean cFlagOn = cFlagOn();
+
+        pop_r16('A', 'F');
+
+        if (zFlagOn) setZFlag(true);
+        if (nFlagOn) setNFlag(true);
+        if (hFlagOn) setHFlag(true);
+        if (cFlagOn) setCFlag(true);
+    }
+
+    // JP instructions (jump)
+
+    private void jp_n16() {
+        PC = memory.readWord(pcAccess); // pc becomes the value of the immediate 2 address' values
+
+        totalMCycles += 4;
+        PC += 3; // TODO: should this be incremented at all??
+    }
+
+    private void jp_z_n16() {
+        if (zFlagOn()) {
+            jp_n16();
+        } else {
+            totalMCycles += 3; // 1 less cycle when condition not met
+            PC += 3;
+        }
+    }
+
+    private void jp_c_n16() {
+        if (cFlagOn()) {
+            jp_n16();
+        } else {
+            totalMCycles += 3; // 1 less cycle when condition not met
+            PC += 3;
+        }
+    }
+
+    private void jp_nz_n16() {
+        if (nFlagOn() && zFlagOn()) {
+            jp_n16();
+        } else {
+            totalMCycles += 3;
+            PC += 3;
+        }
+    }
+
+    private void jp_nc_n16() {
+        if (nFlagOn() && cFlagOn()) {
+            jp_n16();
+        } else {
+            totalMCycles += 3;
+            PC += 3;
+        }
+    }
+
+    private void jp_hl() {
+        PC = HL;
+
+        totalMCycles += 1;
+        PC += 1; // should we be doing this?
+    }
+
+    // JR instructions (Relative jump)
+
+    // e8 is signed (so we can jump forwards 128 or backwards 127).
+    private void jr_e8() {
+        final short addressValueOffset = memory.readByte(pcAccess);
+        PC += addressValueOffset; // relative jump (PC = PC + offset (where offset can be negative value))
+
+        totalMCycles += 3;
+        PC += 2;
+    }
+
+    private void jr_z_e8() {
+        if (zFlagOn()) {
+            jr_e8();
+        } else {
+            totalMCycles += 2;
+            PC += 2;
+        }
+    }
+
+    private void jr_c_e8() {
+        if (cFlagOn()) {
+            jr_e8();
+        } else {
+            totalMCycles += 2;
+            PC += 2;
+        }
+    }
+
+    private void jr_nz_e8() {
+        if (nFlagOn() && zFlagOn()) {
+            jr_e8();
+        } else {
+            totalMCycles += 2;
+            PC += 2;
+        }
+    }
+
+    private void jr_nc_e8() {
+        if (nFlagOn() && cFlagOn()) {
+            jr_e8();
+        } else {
+            totalMCycles += 2;
+            PC += 2;
+        }
+    }
+
+
+
     // ------ HELPER METHODS --------
 
     /**
@@ -922,7 +1109,7 @@ public class CPU {
     }
 
     // these are for F flag only (to avoid incorrectly setting/getting f's where we don't want to)
-    private void setF(final int value) {
+    private void setF(final int value) { // TODO: i think this is pretty pointless..
         AF = (0xFF00 & AF) | value; // rewrites low byte
     }
 
@@ -966,11 +1153,17 @@ public class CPU {
      */
     private void setZFlag(final boolean toOne) {
         final short regFValue = (short) getF();
-        int zFlagSet = regFValue | 0b10000000; // keeps all other bits same but makes sure 7th is set
+        int zFlagSet = regFValue | BIT_7_ON; // keeps all other bits same but makes sure 7th is set
         if (!toOne) {
-            zFlagSet = zFlagSet & 0b01111111; // otherwise set 7th bit to off (0)
+            zFlagSet = zFlagSet & BIT_7_OFF; // otherwise set 7th bit to off (0)
         }
         setF(zFlagSet);
+    }
+
+    private boolean zFlagOn() {
+        final int bit7 = getF() & BIT_7_ON; // try to get 7th bit only
+
+        return (bit7 == BIT_7_ON); // if 7th bit was on, it will be equal to BIT_7_ON
     }
 
     /**
@@ -978,23 +1171,36 @@ public class CPU {
      */
     private void setNFlag(final boolean toOne) {
         final short regFValue = (short) getF();
-        int nFlagSet = regFValue | 0b01000000;
+        int nFlagSet = regFValue | BIT_6_ON;
         if (!toOne) {
-            nFlagSet = nFlagSet & 0b10111111;
+            nFlagSet = nFlagSet & BIT_6_OFF;
         }
         setF(nFlagSet);
     }
+
+    private boolean nFlagOn() {
+        final int bit6 = getF() & BIT_6_ON;
+
+        return (bit6 == BIT_6_ON);
+    }
+
 
     /**
      * Half Carry Flag, Accesses the 5th bit in F register (from AF) and sets it to 1 or 0
      */
     private void setHFlag(final boolean toOne) {
         final short regFValue = (short) getF();
-        int hFlagSet = regFValue | 0b00100000;
+        int hFlagSet = regFValue | BIT_5_ON;
         if (!toOne) {
-            hFlagSet = hFlagSet & 0b11011111;
+            hFlagSet = hFlagSet & BIT_5_OFF;
         }
         setF(hFlagSet);
+    }
+
+    private boolean hFlagOn() {
+        final int bit5 = getF() & BIT_5_ON;
+
+        return (bit5 == BIT_5_ON);
     }
 
     /**
@@ -1002,12 +1208,19 @@ public class CPU {
      */
     private void setCFlag(final boolean toOne) {
         final short regFValue = (short) getF();
-        int cFlagSet = regFValue | 0b00010000;
+        int cFlagSet = regFValue | BIT_4_ON;
         if (!toOne) {
-            cFlagSet = cFlagSet & 0b11101111;
+            cFlagSet = cFlagSet & BIT_4_OFF;
         }
         setF(cFlagSet);
     }
+
+    private boolean cFlagOn() {
+        final int bit4 = getF() & BIT_4_ON;
+
+        return (bit4 == BIT_4_ON);
+    }
+
 
     // Flag set cases
 
