@@ -46,3 +46,10 @@ Fri 18th Apr:
 - implement PUSH/POP r16 [DONE]
 - implement JP instructions [DONE]
 - implement JR isntructions [DONE]
+
+- implement RET instructions [DONE]
+
+Sat 19th Apr:
+- implement CALL instructions [DONE]
+- implement RST instructions [DONE]
+- implement rotation aReg instructions (rla, rlca, etc..) [DONE]

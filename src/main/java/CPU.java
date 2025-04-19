@@ -72,14 +72,7 @@ public class CPU {
         // opcode is the value at the memory address specified by program counter
         // fetch
         short opcode = memory.readByte(PC);
-
-        if (opcode == 0xCB) {
-            PC += 1; // we need another opcode from next byte
-            short prefixOpcode = memory.readByte(PC);
-            prefixedInstructionCall(prefixOpcode);
-        } else {
-            instructionCall(opcode);
-        }
+        instructionCall(opcode);
     }
 
     // opcode table below used from https://gbdev.io/gb-opcodes//optables/
@@ -110,7 +103,7 @@ public class CPU {
             case 0x04 -> inc_r8('B');
             case 0x05 -> dec_r8('B');
             case 0x06 -> ld_r8_n8('B');
-            case 0x07 -> throw new RuntimeException("implement RLCA");
+            case 0x07 -> rlca();
             case 0x08 -> throw new RuntimeException("implement LD [a16],SP");
             case 0x09 -> add_hl_r16("BC");
             case 0x0A -> ld_a_pr16("BC");
@@ -118,7 +111,7 @@ public class CPU {
             case 0x0C -> inc_r8('C');
             case 0x0D -> dec_r8('C');
             case 0x0E -> ld_r8_n8('C');
-            case 0x0F -> throw new RuntimeException("implement RRCA");
+            case 0x0F -> rrca();
 
             // --- ROW 1 ---
             case 0x10 -> System.out.println("STOP INSTRUCTION");
@@ -128,7 +121,7 @@ public class CPU {
             case 0x14 -> inc_r8('D');
             case 0x15 -> dec_r8('D');
             case 0x16 -> ld_r8_n8('D');
-            case 0x17 -> throw new RuntimeException("implement RLA");
+            case 0x17 -> rla();
             case 0x18 -> jr_e8();
             case 0x19 -> add_hl_r16("DE");
             case 0x1A -> ld_a_pr16("DE");
@@ -136,7 +129,7 @@ public class CPU {
             case 0x1C -> inc_r8('E');
             case 0x1D -> dec_r8('E');
             case 0x1E -> ld_r8_n8('E');
-            case 0x1F -> throw new RuntimeException("implement RRA");
+            case 0x1F -> rra();
 
             //--- ROW 2 ---
             case 0x20 -> jr_nz_e8();
@@ -319,29 +312,37 @@ public class CPU {
             case 0xBF -> cp_a_r8('A');
 
             // --- ROW C ---
-            case 0xC0 -> throw new RuntimeException("implement RET NZ");
+            case 0xC0 -> ret_nz();
             case 0xC1 -> pop_r16('B', 'C');
             case 0xC2 -> jp_nz_n16();
             case 0xC3 -> jp_n16();
-            case 0xC4 -> throw new RuntimeException("implement CALL NZ,a16");
+            case 0xC4 -> call_nz_n16();
             case 0xC5 -> push_r16('B', 'C');
             case 0xC6 -> add_a_n8();
-            case 0xC7 -> throw new RuntimeException("implement RST $00");
-            case 0xC8 -> throw new RuntimeException("implement RET Z");
-            case 0xC9 -> throw new RuntimeException("implement RST $00");
+            case 0xC7 -> rst(0x00);
+            case 0xC8 -> ret_z();
+            case 0xC9 -> ret();
             case 0xCA -> jp_z_n16();
-            case 0xCB -> throw new RuntimeException("implement RST $00");
-            case 0xCC -> throw new RuntimeException("implement RST $00");
-            case 0xCD -> throw new RuntimeException("implement RST $00");
+            case 0xCB -> prefixedInstructionCall(); // will execute the prefixed opcodes
+            case 0xCC -> call_z_n16();
+            case 0xCD -> call_n16();
             case 0xCE -> adc_a_n8();
+            case 0xCF -> rst(0x08);
 
             // --- ROW D ---
+            case 0xD0 -> ret_nc();
             case 0xD1 -> pop_r16('D', 'E');
             case 0xD2 -> jp_nc_n16();
+            case 0xD4 -> call_nc_n16();
             case 0xD5 -> push_r16('D', 'E');
             case 0xD6 -> sub_a_n8();
+            case 0xD7 -> rst(0x10);
+            case 0xD8 -> ret_c();
+            case 0xD9 -> throw new RuntimeException("implement RETI (with interrupt enable)");
             case 0xDA -> jp_c_n16();
+            case 0xDC -> call_c_n16();
             case 0xDE -> sbc_a_n8();
+            case 0xDF -> rst(0x18);
 
             // --- ROW E ---
             case 0xE0 -> ldh_pn16_a();
@@ -349,10 +350,12 @@ public class CPU {
             case 0xE2 -> ldh_pc_a();
             case 0xE5 -> push_r16('H', 'L');
             case 0xE6 -> and_a_n8();
+            case 0xE7 -> rst(0x20);
             case 0xE8 -> add_sp_e8();
             case 0xE9 -> jp_hl();
             case 0xEA -> ld_pn16_a();
             case 0xEE -> xor_a_n8();
+            case 0xEF -> rst(0x28);
 
             // --- ROW F ---
             case 0xF0 -> ldh_a_pn16();
@@ -360,18 +363,23 @@ public class CPU {
             case 0xF2 -> ldh_a_pc();
             case 0xF5 -> push_r16('A', 'F');
             case 0xF6 -> or_a_n8();
+            case 0xF7 -> rst(0x30);
             case 0xFA -> ld_a_pn16();
             case 0xFE -> cp_a_n8();
+            case 0xFF -> rst(0x38);
 
             default -> throw new RuntimeException("invalid opcode: " + opcode);
         }
     }
 
     /**
-     * When opcode is prefixed with xCB
-     * @param opcode the programme opcode
+     * Run different set of instructions when opcode is prefixed with xCB
      */
-    private void prefixedInstructionCall(final short opcode) {
+    private void prefixedInstructionCall() {
+        // need to access next byte (first was xCB)
+        PC += 1;
+        final short opcode = memory.readByte(PC);
+
         switch (opcode) {
             case 0x00 -> System.out.println("implement the prefixed opcodes!");
             default -> throw new RuntimeException("invalid opcode: " + opcode);
@@ -1068,6 +1076,216 @@ public class CPU {
         }
     }
 
+    // RET instructions
+
+    // return from subroutine (basically a pop PC)
+    private void ret() {
+        final short firstSPAddressValue = memory.readByte(SP);
+        final int pcLowByte = firstSPAddressValue;
+        SP++;
+
+        final short secondSPAddressValue = memory.readByte(SP);
+        final int pcHighByte = secondSPAddressValue;
+        SP++;
+
+        PC = (pcHighByte << 8) | pcLowByte;
+
+        totalMCycles += 4;
+        PC += 1;
+    }
+
+    private void ret_z() {
+        if (zFlagOn()) {
+            ret();
+            totalMCycles += 1; // an extra cycle is set (so 5 in total)
+        } else {
+            totalMCycles += 2;
+            PC += 1;
+        }
+    }
+
+    private void ret_c() {
+        if (cFlagOn()) {
+            ret();
+            totalMCycles += 1;
+        } else {
+            totalMCycles += 2;
+            PC += 1;
+        }
+    }
+
+    private void ret_nz() {
+        if (nFlagOn() && zFlagOn()) {
+            ret();
+            totalMCycles += 1;
+        } else {
+            totalMCycles += 2;
+            PC += 1;
+        }
+    }
+
+    private void ret_nc() {
+        if (nFlagOn() && cFlagOn()) {
+            ret();
+            totalMCycles += 1;
+        } else {
+            totalMCycles += 2;
+            PC += 1;
+        }
+    }
+
+    // TODO: figure out IME interrupt
+    public void reti() {};
+
+
+    // CALL instructions
+
+    private void call_n16() {
+        final short lowByte = memory.readByte(pcAccess);
+        final short highByte = memory.readByte(pcAccess + 1);
+        SP--;
+        memory.writeByte(SP, highByte);
+        SP--;
+        memory.writeByte(SP, lowByte);
+
+        // then implicit jp n16
+        PC = memory.readWord(pcAccess);
+
+        totalMCycles += 6;
+        PC += 3;
+    }
+
+    private void call_z_n16() {
+        if (zFlagOn()) {
+            call_n16();
+        } else {
+            totalMCycles += 3;
+            PC += 3;
+        }
+    }
+
+    private void call_c_n16() {
+        if (cFlagOn()) {
+            call_n16();
+        } else {
+            totalMCycles += 3;
+            PC += 3;
+        }
+    }
+
+    private void call_nz_n16() {
+        if (nFlagOn() && zFlagOn()) {
+            call_n16();
+        } else {
+            totalMCycles += 3;
+            PC += 3;
+        }
+    }
+
+    private void call_nc_n16() {
+        if (nFlagOn() && cFlagOn()) {
+            call_n16();
+        } else {
+            totalMCycles += 3;
+            PC += 3;
+        }
+    }
+
+    // RST instruction
+
+    // is a call instruction on the given vec TODO: no idea if this is correct..
+    private void rst(final int address) { // could split to different methods?
+        SP--;
+        memory.writeByte(SP, memory.readByte(address));
+        // TODO: do we need to do the implicit jp instruction????
+
+        totalMCycles += 4;
+        PC += 1;
+    }
+
+    // Rotation instructions
+
+    private void rla() { // this is through the carry flag, so whatever is shifted out comes back
+        int cFlagValue = 0;
+        if (cFlagOn()) cFlagValue = 1;
+
+        final int carryAndAreg = cFlagValue << 9 | getr8('A'); // bit 9 = cFlag
+        final int leftRotateResult = carryAndAreg << 1;
+
+        // keep last bit (10th since we shifted left 1) and shifts back to 1st bit placement
+        final int overflowBit = (leftRotateResult & 0b1000000000) >> 9;
+        cFlagValue = (leftRotateResult & 0b100000000) >> 8; // keep 9th
+
+        // places overflow bit to the first bit of A and keeps only 8 bits
+        final int aRegValue = (leftRotateResult | overflowBit) & 0xFF;
+
+        setr8('A', aRegValue);
+        rotationFlagSets(cFlagValue);
+
+        totalMCycles += 1;
+        PC += 1;
+    }
+
+    private void rra() {
+        int cFlagValue = 0;
+        if (cFlagOn()) cFlagValue = 1;
+
+        // we'll need to make this 10 bits long, and consider bit 0 as the underflow bit (to move to bit 9)
+        final int carryAndAreg = (getr8('A') << 2) | (cFlagValue << 1); // bit 0 = 0, bit 1 = cFlag
+        final int rightRotateResult = carryAndAreg >> 1;
+
+        final int underflowBit = rightRotateResult & 0b000000001; // keep 1st bit
+        cFlagValue = (rightRotateResult & 0b000000010) >> 1; // keep 2nd bit (bit shift back to 1st bit)
+
+        int aRegValue;
+        if (underflowBit == 1) { // if on, we can OR to apply it
+            aRegValue = (underflowBit << 8) | (rightRotateResult >> 2);
+        } else { // if off, we need to AND
+            // put 1's to the rest of the underflow byte so we don't change the other A register values
+            aRegValue = ((underflowBit << 8) | 0b01111111) | (rightRotateResult >> 2);
+        }
+
+        setr8('A', aRegValue);
+        rotationFlagSets(cFlagValue);
+
+        totalMCycles += 1;
+        PC += 1;
+    }
+
+    private void rlca() { // rotate left
+        int cFlagValue = 0;
+        if (cFlagOn()) cFlagValue = 1;
+
+        final int carryAndAreg = (cFlagValue << 9) | getr8('A'); // combine in correct bit places
+        final int leftRotateResult = (carryAndAreg << 1) & 0b111111111; // & ensures we only keep the 9 bits (we don't want 10)
+
+        cFlagValue = leftRotateResult >> 8; // keep 9th bit (the c flag value) as a single bit
+        final int aRegValue = leftRotateResult & 0b11111111; // keep only first 8 bits
+        setr8('A', aRegValue);
+
+        rotationFlagSets(cFlagValue);
+
+        totalMCycles += 1;
+        PC += 1;
+    }
+
+    private void rrca() { // rotate right
+        int cFlagValue = 0;
+        if (cFlagOn()) cFlagValue = 1;
+
+        final int carryAndAreg = (getr8('A') << 1) | cFlagValue;
+        final int rightRotateResult = (carryAndAreg >> 1) & 0b111111111;
+
+        cFlagValue = rightRotateResult & 0b000000001; // keep 1st bit
+        final int aRegValue = rightRotateResult >> 1; // removes the cValue so we just keep aReg
+        setr8('A', aRegValue);
+
+        rotationFlagSets(cFlagValue);
+
+        totalMCycles += 1;
+        PC += 1;
+    }
+
 
 
     // ------ HELPER METHODS --------
@@ -1284,6 +1502,17 @@ public class CPU {
         setNFlag(false);
         setHFlag(false);
         setCFlag(false);
+    }
+
+    private void rotationFlagSets(final int cFlagResult) {
+        setZFlag(false);
+        setNFlag(false);
+        setHFlag(false);
+        if (cFlagResult == 1) {
+            setCFlag(true);
+        } else {
+            setCFlag(false);
+        }
     }
 
 }
