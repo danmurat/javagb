@@ -30,7 +30,7 @@ public class Memory
     private final short[] highRam = new short[0x80]; // TODO: the size may be wrong for this (0x7F instead)
 
 
-    // io interrupt registers (should these not be booleans?)
+    // io interrupt registers (holds a byte (bits 0,1,2,3,4 are the interrupt flags)
     private short IF = 0x00; // interrupt flag
     private short IE = 0x00; // interrupt enable
 
@@ -71,6 +71,14 @@ public class Memory
      */
     public void setCPU(CPU cpu) {
         this.cpu = cpu;
+    }
+
+    public short getIF() {
+        return IF;
+    }
+
+    public short getIE() {
+        return IE;
     }
 
     /**
@@ -193,10 +201,10 @@ public class Memory
      */
     public void writeByte(final int address, final short value)
     {
-
+        // TODO: turn into a switch
         if (0x0000 <= address && address <= 0x3FFF) // ROM BANK 0
         {
-            romData[address] = value;
+            romData[address] = value; // TODO: we shouldn't be writing to rom??
         }
         else if (0x4000 <= address && address <= 0x7FFF) // ROM Bank 1 or 01..n ??
         {
@@ -238,44 +246,26 @@ public class Memory
             switch (address)
             {
                 // timer addresses
-                case 0xFF04:
-                    DIV = 0x00; // is reset
-                case 0xFF05:
-                    TIMA = value;
-                case 0xFF06:
-                    TMA = value;
-                case 0xFF07:
-                    TAC = value; // TODO: add & 0x07 and update TIMA counter
+                case 0xFF04 -> DIV = 0x00; // is reset
+                case 0xFF05 -> TIMA = value;
+                case 0xFF06 -> TMA = value;
+                case 0xFF07 -> TAC = value; // TODO: add & 0x07 and update TIMA counter
                 // interrupt address
-                case 0xFF0F:
-                    IF = value;
+                case 0xFF0F -> IF = value;
                 // video
-                case 0xFF40:
-                    LCDC = value;
-                case 0xFF41:
-                    STAT = value;
-                case 0xFF42:
-                    SCY = value;
-                case 0xFF43:
-                    SCX = value;
-                case 0xFF44:
-                    LY = 0x00; // ly is also reset
-                case 0xFF45:
-                    LYC = value;
-                case 0xFF46:
-                    DMA = value;
-                case 0xFF47:
-                    BGP = value;
-                case 0xFF48:
-                    OBP0 = value;
-                case 0xFF49:
-                    OBP1 = value;
-                case 0xFF4A:
-                    WY = value;
-                case 0xFF4B:
-                    WX = value;
-                default:
-                    throw new RuntimeException("unknown address 0x" + Integer.toHexString(address));
+                case 0xFF40 -> LCDC = value;
+                case 0xFF41 -> STAT = value;
+                case 0xFF42 -> SCY = value;
+                case 0xFF43 -> SCX = value;
+                case 0xFF44 -> LY = 0x00; // ly is also reset
+                case 0xFF45 -> LYC = value;
+                case 0xFF46 -> DMA = value;
+                case 0xFF47 -> BGP = value;
+                case 0xFF48 -> OBP0 = value;
+                case 0xFF49 -> OBP1 = value;
+                case 0xFF4A -> WY = value;
+                case 0xFF4B -> WX = value;
+                default -> throw new RuntimeException("unknown address 0x" + Integer.toHexString(address));
             }
         }
         else if (0xFF80 <= address && address <= 0xFFFE) // high ram
@@ -313,11 +303,90 @@ public class Memory
      */
     public void writeWord(final int address, final int value) {
         final int value1 = 0x00FF & value;        // least significant byte only
-        final int value2 = (0xFF00 & value) >> 8; // most significant byte, then bit shifted to become an actual byte
+        final int value2 = value >> 8; // most significant byte, (bit shifted to remove low byte)
         writeByte(address, (short)value1);
         writeByte(address+1, (short)value2);
     }
 
+
+    // reading interrept flag info
+
+    // if
+
+    /**
+     * Get's the boolean value of bit 0 from IF
+     * @return boolean vblank value
+     */
+    public boolean vBlankRequest() {
+        final int bit0 = IF & 0b00000001; // and only bit 0 then checks if that bit was on
+        return bit0 == 0b00000001;
+    }
+
+    public boolean lcdRequest() {
+        final int bit1 = IF & 0b00000010;
+        return bit1 == 0b00000010;
+    }
+
+    public boolean timerRequest() {
+        final int bit2 = IF & 0b00000100;
+        return bit2 == 0b00000100;
+    }
+
+    public boolean serialRequest() {
+        final int bit3 = IF & 0b00001000;
+        return bit3 == 0b00001000;
+    }
+
+    public boolean joypadRequest() {
+        final int bit4 = IF & 0b00010000;
+        return bit4 == 0b00010000;
+    }
+
+    // interrupt enables
+    public boolean vBlankEnable() {
+        final int bit0 = IE & 0b00000001; // and only bit 0 then checks if that bit was on
+        return bit0 == 0b00000001;
+    }
+
+    public boolean lcdEnable() {
+        final int bit1 = IE & 0b00000010;
+        return bit1 == 0b00000010;
+    }
+
+    public boolean timerEnable() {
+        final int bit2 = IE & 0b00000100;
+        return bit2 == 0b00000100;
+    }
+
+    public boolean serialEnable() {
+        final int bit3 = IE & 0b00001000;
+        return bit3 == 0b00001000;
+    }
+
+    public boolean joypadEnable() {
+        final int bit4 = IE & 0b00010000;
+        return bit4 == 0b00010000;
+    }
+
+    public void vBlankRequestReset() {
+        IF = (short) (IF & 0b11111110); // keep all bits same, but resets 0bit to 0
+    }
+
+    public void lcdRequestReset() {
+        IF = (short) (IF & 0b11111101);
+    }
+
+    public void timerRequestReset() {
+        IF = (short) (IF & 0b11111011);
+    }
+
+    public void serialRequestReset() {
+        IF = (short) (IF & 0b11110111);
+    }
+
+    public void joypadRequestReset() {
+        IF = (short) (IF & 0b11101111);
+    }
 
     /**
      * Helps with testing. <br>

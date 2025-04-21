@@ -14,6 +14,12 @@ public class CPU {
     private static final int BIT_4_ON = 0b00010000;
     private static final int BIT_4_OFF = 0b11101111;
 
+    private static final int V_BLANK_SOURCE_ADDRESS = 0x40;
+    private static final int STAT_SOURCE_ADDRESS = 0x48;
+    private static final int TIMER_SOURCE_ADDRESS = 0x50;
+    private static final int SERIAL_SOURCE_ADDRESS = 0x58;
+    private static final int JOYPAD_SOURCE_ADDRESS = 0x60;
+
     private Memory memory;
 
     private int AF; // A = high, F = lo (Lower 8 bits (F) hold Flag information)
@@ -24,6 +30,9 @@ public class CPU {
     private int SP;
     private int PC;
     private int pcAccess = PC + 1;
+
+    private boolean IME; // interrupt master enable flag (write only)
+    private boolean eiTurnImeOn; // ei turns IME on after the next instruction (so we use this to check in executeInstr())
 
     /*
     HANDLING CLOCK CYCLES:
@@ -61,6 +70,9 @@ public class CPU {
         SP = 0;     // stack pointer
         PC = 0x100; // program counter
 
+        IME = false;
+        eiTurnImeOn = false;
+
         totalMCycles = 0;
     }
 
@@ -71,8 +83,29 @@ public class CPU {
     public void executeInstruction() {
         // opcode is the value at the memory address specified by program counter
         // fetch
-        short opcode = memory.readByte(PC);
-        instructionCall(opcode);
+        if (!eiTurnImeOn) {
+            if (IME) {
+                interruptHandle(); // attempt to handle (redirects PC to handle even)
+            }
+            final short opcode = memory.readByte(PC);
+            instructionCall(opcode);
+        } else {
+            if (IME) {
+                interruptHandle(); // this may never actually execute
+            }
+            final short opcode = memory.readByte(PC);
+            instructionCall(opcode);
+            // this makes ei turn IME on AFTER the next instruction is finished
+            IME = true;
+            eiTurnImeOn = false;
+        }
+
+        /* TODO:
+        Interrupts is a signal to the cpu to stop it's next execution. This is so that it can handle an
+        event that has just occured (a keypress (for the game pad) in our case) before the next instruction.
+
+        We will need to to a interrupt check in this method before (or after) we execute an instruction
+         */
     }
 
     // opcode table below used from https://gbdev.io/gb-opcodes//optables/
@@ -88,15 +121,8 @@ public class CPU {
      * @param opcode the programme opcode
      */
     private void instructionCall(final short opcode) {
-        // private because we'll handle the execution in another method
-        // huge switch case
-
         switch (opcode) {
-            // --- ROW 0 ---
-            case 0x00 -> { // nop literally does nothing but this,
-                totalMCycles += 1;
-                PC += 1;
-            }
+            case 0x00 -> nop();
             case 0x01 -> ld_r16_n16("BC"); // TODO: in future check this string passing doesn't affect performance too much
             case 0x02 -> ld_pr16_a("BC");
             case 0x03 -> inc_r16("BC");
@@ -104,7 +130,7 @@ public class CPU {
             case 0x05 -> dec_r8('B');
             case 0x06 -> ld_r8_n8('B');
             case 0x07 -> rlca();
-            case 0x08 -> throw new RuntimeException("implement LD [a16],SP");
+            case 0x08 -> ld_pn16_sp();
             case 0x09 -> add_hl_r16("BC");
             case 0x0A -> ld_a_pr16("BC");
             case 0x0B -> dec_r16("BC");
@@ -113,8 +139,7 @@ public class CPU {
             case 0x0E -> ld_r8_n8('C');
             case 0x0F -> rrca();
 
-            // --- ROW 1 ---
-            case 0x10 -> System.out.println("STOP INSTRUCTION");
+            case 0x10 -> stop(); // TODO: implement this fully
             case 0x11 -> ld_r16_n16("DE");
             case 0x12 -> ld_pr16_a("DE");
             case 0x13 -> inc_r16("DE");
@@ -131,7 +156,6 @@ public class CPU {
             case 0x1E -> ld_r8_n8('E');
             case 0x1F -> rra();
 
-            //--- ROW 2 ---
             case 0x20 -> jr_nz_e8();
             case 0x21 -> ld_r16_n16("HL");
             case 0x22 -> ld_pr16_a("HL+");
@@ -139,7 +163,7 @@ public class CPU {
             case 0x24 -> inc_r8('H');
             case 0x25 -> dec_r8('H');
             case 0x26 -> ld_r8_n8('H');
-            case 0x27 -> throw new RuntimeException("implement DAA");
+            case 0x27 -> daa();
             case 0x28 -> jr_z_e8();
             case 0x29 -> add_hl_r16("HL");
             case 0x2A -> ld_a_pr16("HL+");
@@ -147,9 +171,8 @@ public class CPU {
             case 0x2C -> inc_r8('L');
             case 0x2D -> dec_r8('L');
             case 0x2E -> ld_r8_n8('L');
-            case 0x2F -> throw new RuntimeException("implement CPL");
+            case 0x2F -> cpl();
 
-            // --- ROW 3 ---
             case 0x30 -> jr_nc_e8();
             case 0x31 -> ld_r16_n16("SP");
             case 0x32 -> ld_pr16_a("HL-");
@@ -157,7 +180,7 @@ public class CPU {
             case 0x34 -> inc_phl();
             case 0x35 -> dec_phl();
             case 0x36 -> ld_phl_n8();
-            case 0x37 -> throw new RuntimeException("implement SCF");
+            case 0x37 -> scf();
             case 0x38 -> jr_c_e8();
             case 0x39 -> add_hl_r16("SP");
             case 0x3A -> ld_a_pr16("HL-");
@@ -165,9 +188,8 @@ public class CPU {
             case 0x3C -> inc_r8('A');
             case 0x3D -> dec_r8('A');
             case 0x3E -> ld_r8_n8('A');
-            case 0x3F -> throw new RuntimeException("implement CCF");
+            case 0x3F -> ccf();
 
-            // --- ROW 4 ---
             case 0x40 -> ld_r8_r8('B', 'B');
             case 0x41 -> ld_r8_r8('B', 'C');
             case 0x42 -> ld_r8_r8('B', 'D');
@@ -185,7 +207,6 @@ public class CPU {
             case 0x4E -> ld_r8_phl('C');
             case 0x4F -> ld_r8_r8('C', 'A');
 
-            // --- ROW 5 ---
             case 0x50 -> ld_r8_r8('D', 'B');
             case 0x51 -> ld_r8_r8('D', 'C');
             case 0x52 -> ld_r8_r8('D', 'D');
@@ -203,7 +224,6 @@ public class CPU {
             case 0x5E -> ld_r8_phl('E');
             case 0x5F -> ld_r8_r8('E', 'A');
 
-            // --- ROW 6 ---
             case 0x60 -> ld_r8_r8('H', 'B');
             case 0x61 -> ld_r8_r8('H', 'C');
             case 0x62 -> ld_r8_r8('H', 'D');
@@ -221,14 +241,13 @@ public class CPU {
             case 0x6E -> ld_r8_phl('L');
             case 0x6F -> ld_r8_r8('L', 'A');
 
-            // --- ROW 7 ---
             case 0x70 -> ld_phl_r8('B');
             case 0x71 -> ld_phl_r8('C');
             case 0x72 -> ld_phl_r8('D');
             case 0x73 -> ld_phl_r8('E');
             case 0x74 -> ld_phl_r8('H');
             case 0x75 -> ld_phl_r8('L');
-            case 0x76 -> throw new RuntimeException("Implement HALT");
+            case 0x76 -> halt(); // TODO!!!
             case 0x77 -> ld_phl_r8('A');
             case 0x78 -> ld_r8_r8('A', 'B');
             case 0x79 -> ld_r8_r8('A', 'C');
@@ -239,7 +258,6 @@ public class CPU {
             case 0x7E -> ld_r8_phl('A');
             case 0x7F -> ld_r8_r8('A', 'A');
 
-            // --- ROW 8 ---
             case 0x80 -> add_a_r8('B');
             case 0x81 -> add_a_r8('C');
             case 0x82 -> add_a_r8('D');
@@ -257,7 +275,6 @@ public class CPU {
             case 0x8E -> adc_a_phl();
             case 0x8F -> adc_a_r8('A');
 
-            // --- ROW 9 ---
             case 0x90 -> sub_a_r8('B');
             case 0x91 -> sub_a_r8('C');
             case 0x92 -> sub_a_r8('D');
@@ -275,7 +292,6 @@ public class CPU {
             case 0x9E -> sbc_a_phl();
             case 0x9F -> sbc_a_r8('A');
 
-            // --- ROW A ---
             case 0xA0 -> and_a_r8('B');
             case 0xA1 -> and_a_r8('C');
             case 0xA2 -> and_a_r8('D');
@@ -293,7 +309,6 @@ public class CPU {
             case 0xAE -> xor_a_phl();
             case 0xAF -> xor_a_r8('A');
 
-            // --- ROW B ---
             case 0xB0 -> or_a_r8('B');
             case 0xB1 -> or_a_r8('C');
             case 0xB2 -> or_a_r8('D');
@@ -311,7 +326,6 @@ public class CPU {
             case 0xBE -> cp_a_phl();
             case 0xBF -> cp_a_r8('A');
 
-            // --- ROW C ---
             case 0xC0 -> ret_nz();
             case 0xC1 -> pop_r16('B', 'C');
             case 0xC2 -> jp_nz_n16();
@@ -329,7 +343,6 @@ public class CPU {
             case 0xCE -> adc_a_n8();
             case 0xCF -> rst(0x08);
 
-            // --- ROW D ---
             case 0xD0 -> ret_nc();
             case 0xD1 -> pop_r16('D', 'E');
             case 0xD2 -> jp_nc_n16();
@@ -338,13 +351,12 @@ public class CPU {
             case 0xD6 -> sub_a_n8();
             case 0xD7 -> rst(0x10);
             case 0xD8 -> ret_c();
-            case 0xD9 -> throw new RuntimeException("implement RETI (with interrupt enable)");
+            case 0xD9 -> reti(); // TODO: fully implement this
             case 0xDA -> jp_c_n16();
             case 0xDC -> call_c_n16();
             case 0xDE -> sbc_a_n8();
             case 0xDF -> rst(0x18);
 
-            // --- ROW E ---
             case 0xE0 -> ldh_pn16_a();
             case 0xE1 -> pop_r16('H', 'L');
             case 0xE2 -> ldh_pc_a();
@@ -357,14 +369,17 @@ public class CPU {
             case 0xEE -> xor_a_n8();
             case 0xEF -> rst(0x28);
 
-            // --- ROW F ---
             case 0xF0 -> ldh_a_pn16();
             case 0xF1 -> pop_af();
             case 0xF2 -> ldh_a_pc();
+            case 0xF3 -> di(); // TODO!!!
             case 0xF5 -> push_r16('A', 'F');
             case 0xF6 -> or_a_n8();
             case 0xF7 -> rst(0x30);
+            case 0xF8 -> ld_hl_spe8();
+            case 0xF9 -> ld_sp_hl();
             case 0xFA -> ld_a_pn16();
+            case 0xFB -> ei(); // TODO!!!
             case 0xFE -> cp_a_n8();
             case 0xFF -> rst(0x38);
 
@@ -384,6 +399,80 @@ public class CPU {
             case 0x00 -> System.out.println("implement the prefixed opcodes!");
             default -> throw new RuntimeException("invalid opcode: " + opcode);
         }
+    }
+
+
+    // TODO: shorten this!! lot of repeats
+    private void interruptHandle() {
+        final int pcHighByte = PC >> 8;
+        final int pcLowByte = PC & 0xFF;
+
+        totalMCycles += 2;
+
+        // this instruction only runs if the IME is on
+        // check which interrput we are handling (already in heirarchy)
+        if (memory.vBlankRequest() && memory.vBlankEnable()) {
+            memory.vBlankRequestReset();
+            IME = false;
+            // pc pushed to stack, then = source address
+            SP--;
+            memory.writeByte(SP, (short) pcHighByte);
+            SP--;
+            memory.writeByte(SP, (short) pcLowByte);
+            PC = V_BLANK_SOURCE_ADDRESS;
+
+            totalMCycles += 3;
+        } else if (memory.lcdRequest() && memory.lcdEnable()) {
+            memory.lcdRequestReset();
+            IME = false;
+
+            SP--;
+            memory.writeByte(SP, (short) pcHighByte);
+            SP--;
+            memory.writeByte(SP, (short) pcLowByte);
+            PC = STAT_SOURCE_ADDRESS;
+
+            totalMCycles += 3;
+        } else if (memory.timerRequest() && memory.timerEnable()) {
+            memory.timerRequestReset();
+            IME = false;
+
+            SP--;
+            memory.writeByte(SP, (short) pcHighByte);
+            SP--;
+            memory.writeByte(SP, (short) pcLowByte);
+            PC = TIMER_SOURCE_ADDRESS;
+
+            totalMCycles += 3;
+        } else if (memory.serialRequest() && memory.serialEnable()) {
+            memory.serialRequestReset();
+            IME = false;
+
+            SP--;
+            memory.writeByte(SP, (short) pcHighByte);
+            SP--;
+            memory.writeByte(SP, (short) pcLowByte);
+            PC = SERIAL_SOURCE_ADDRESS;
+
+            totalMCycles += 3;
+        } else if (memory.joypadRequest() && memory.joypadEnable()) {
+            memory.joypadRequestReset();
+            IME = false;
+
+            SP--;
+            memory.writeByte(SP, (short) pcHighByte);
+            SP--;
+            memory.writeByte(SP, (short) pcLowByte);
+            PC = JOYPAD_SOURCE_ADDRESS;
+
+            totalMCycles += 3;
+        }
+
+        /*
+        So whatever the interrupt is, the cpu begins executing code programmed by the game when we
+        jump to 0x60 for example. Once the interrupt is handled (as intended by the game) there will be
+        a reti() instruction which brings us back to original exection.
+         */
     }
 
 
@@ -527,6 +616,38 @@ public class CPU {
         }
         totalMCycles += 2;
         PC += 1;
+    }
+
+    private void ld_pn16_sp() {
+        final int address = memory.readWord(pcAccess);
+        memory.writeWord(address, SP); // handles the low/high bytes
+
+        totalMCycles += 5;
+        PC += 3;
+    }
+
+    private void ld_sp_hl() {
+        SP = HL;
+
+        totalMCycles += 2;
+        PC += 1;
+    }
+
+    private void ld_hl_spe8() {
+        final int addressValue = memory.readByte(pcAccess); // signed
+        SP += addressValue;
+        setr16("HL", SP);
+
+        setZFlag(false);
+        setNFlag(false);
+        if (SP > 0xFF) {
+            setCFlag(true);
+        } else if (SP > 0xF){
+            setHFlag(true);
+        }
+
+        totalMCycles += 3;
+        PC += 2;
     }
 
 
@@ -770,7 +891,7 @@ public class CPU {
         sub_a_n8();
     }
 
-    // AND instructions
+    // Bitwise instructions (AND, OR, XOR, CPL)
 
     // is it worth it to reduce these methods to 1 (since they are almost identical)?
     private void and_a_r8(final char register) {
@@ -809,8 +930,6 @@ public class CPU {
         PC += 2;
     }
 
-    // XOR instructions
-
     private void xor_a_r8(final char register) {
         final short aValue = (short) getr8('A');
         final short r8Value = (short) getr8(register);
@@ -846,8 +965,6 @@ public class CPU {
         totalMCycles += 2;
         PC += 2;
     }
-
-    // OR instructions
 
     private void or_a_r8(final char register) {
         final short aValue = (short) getr8('A');
@@ -885,6 +1002,19 @@ public class CPU {
         totalMCycles += 2;
         PC += 2;
     }
+
+    // complement accumulator (NOT A)
+    private void cpl() {
+        final int notARegValue = ~getr8('A');
+        setr8('A', notARegValue);
+
+        setNFlag(true);
+        setHFlag(true);
+
+        totalMCycles += 1;
+        PC += 1;
+    }
+
 
     // CP instructions
 
@@ -1134,8 +1264,11 @@ public class CPU {
         }
     }
 
-    // TODO: figure out IME interrupt
-    public void reti() {};
+    public void reti() {
+        ret();
+        IME = true;
+        // cycles/pc already set
+    }
 
 
     // CALL instructions
@@ -1194,7 +1327,7 @@ public class CPU {
     // RST instruction
 
     // is a call instruction on the given vec TODO: no idea if this is correct..
-    private void rst(final int address) { // could split to different methods?
+    private void rst(final int address) {
         SP--;
         memory.writeByte(SP, memory.readByte(address));
         // TODO: do we need to do the implicit jp instruction????
@@ -1226,7 +1359,7 @@ public class CPU {
         PC += 1;
     }
 
-    private void rra() {
+    private void rra() { // through carry
         int cFlagValue = 0;
         if (cFlagOn()) cFlagValue = 1;
 
@@ -1252,7 +1385,7 @@ public class CPU {
         PC += 1;
     }
 
-    private void rlca() { // rotate left
+    private void rlca() { // rotate left (not through carry)
         int cFlagValue = 0;
         if (cFlagOn()) cFlagValue = 1;
 
@@ -1284,6 +1417,108 @@ public class CPU {
 
         totalMCycles += 1;
         PC += 1;
+    }
+
+    // carry flag instructions
+
+    private void scf() {
+        setNFlag(false);
+        setHFlag(false);
+        setCFlag(true); // simply set to true
+
+        totalMCycles += 1;
+        PC += 1;
+    }
+
+    private void ccf() {
+        setNFlag(false);
+        setHFlag(false);
+        // compliment, so we invert whatever the current result is
+        if (cFlagOn()) {
+            setCFlag(false);
+        } else {
+            setCFlag(true);
+        }
+
+        totalMCycles += 1;
+        PC += 1;
+    }
+
+
+    // Interrupt related instructions
+
+    // TODO
+    private void halt() {
+        boolean pendingInterrupts = (memory.getIF() & memory.getIE()) != 0;
+        // Enters low power state until interrupt occurs
+        if (IME) {
+            interruptHandle(); // TODO: not 100% sure this is correct
+        } else if (!IME && !pendingInterrupts) {
+            // the low power state (we wait until interrupt happens)
+            while (!pendingInterrupts) {}
+        } else if (!IME && pendingInterrupts) {
+            // TODO
+            // potentially implement the HALT bug here? PC byte is read twice (since bug doesn't increment PC)
+        }
+
+        PC += 1;
+    }
+
+    private void di() {
+        IME = false;
+
+        totalMCycles += 1;
+        PC += 1;
+    }
+
+    private void ei() {
+        eiTurnImeOn = true;
+
+        totalMCycles += 1;
+        PC += 1;
+    }
+
+    // Miscellaneous instructions
+
+    private void daa() { // decimal adjust accumulator
+        int adjustment = 0;
+        if (nFlagOn()) {
+            if (hFlagOn()) adjustment += 0x6;
+            if (cFlagOn()) adjustment += 0x60;
+            final int aRegValue = getr8('A');
+            final int newAValue = aRegValue - adjustment;
+            setr8('A', newAValue);
+        } else {
+            final int aRegValue = getr8('A');
+            if (hFlagOn() || (aRegValue & 0xF) > 0x9) adjustment += 0x6;
+            if (cFlagOn() || aRegValue > 0x99) {
+                adjustment += 0x60;
+                setCFlag(true);
+            }
+            final int newAValue = aRegValue + adjustment;
+            setr8('A', newAValue);
+        }
+
+        if (getr8('A') == 0) setZFlag(true);
+        setHFlag(false);
+        // c flag should already be set in elif
+
+        totalMCycles += 1;
+        PC += 1;
+    }
+
+    private void nop() { // no operation
+        totalMCycles += 1;
+        PC += 1;
+    }
+
+    private void stop() {
+        // TODO: implement this when we want to add GameBoy colour support. (no rom uses this on GB)
+        /*Enter CPU very low power mode. Also used to switch between GBC double speed and normal speed CPU modes.
+
+          The exact behavior of this instruction is fragile and may interpret its second byte as a separate
+          instruction (see the Pan Docs), which is why rgbasm(1) allows explicitly specifying the second byte
+          (STOP n8) to override the default of $00 (a NOP instruction).*/
     }
 
 

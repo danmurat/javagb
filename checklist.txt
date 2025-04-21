@@ -53,3 +53,7 @@ Sat 19th Apr:
 - implement CALL instructions [DONE]
 - implement RST instructions [DONE]
 - implement rotation aReg instructions (rla, rlca, etc..) [DONE]
+
+Sun 20th Apr:
+- figure out what the interrupts do [DONE]
+- implement the interrupt instructions (halt, di, ei, + reti) [DONE]

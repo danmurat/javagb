@@ -1,0 +1,20 @@
+Interrupts basically signal to the cpu to stop its execution to handle something.
+This could be a key press, error or whatever.
+
+Based off the PanDocs, mem addresses xff0f and xffff hold the interrupt request and enable info.
+
+Within the byte in each address, the first 5 bits hold the "flags" for each type of event (joypad, timer, etc)
+so for xff0f, if bit 5 is on, it is requesting an interrupt for the joycon.
+
+An interrupt only happens if the corrosponding bit in xffff is also on AND the IME flag is on too.
+
+The cpu itself will already set the IF flags on, so no need to ever write ourselves. But we will need to read
+info from IF and IE to check both flags for the same thing are set.
+
+
+ -- Interrupt handling:
+
+ Although I'm a bit confused, it seems like we need a dedicated method that handles interrupts.
+ This would only run if the Interrupt cases match (joypad IF IE and IME are set).
+
+ There is a service routine that happens before control is given to interrupt handler however.
