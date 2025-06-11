@@ -20,7 +20,7 @@ public class Memory
 
     private final short[] videoRam = new short[0x2000];
     private final short[] externalRam = new short[0x2000];
-    private final short[] workRam = new short[0x1000]; // holds both bank 0 and 1 (for now)
+    private final short[] workRam = new short[0x2000]; // holds both bank 0 and 1 (for now)
 
     private final short[] echo = new short[0x1E00];
 
@@ -118,7 +118,8 @@ public class Memory
         }
         else if (0xD000 <= address && address <= 0xDFFF) // 4kb work ram bank 1
         {
-            return workRam[address - 0xD000]; // re
+            // same issue as in writeByte fixed..
+            return workRam[address - 0xC000];
         }
         else if (0xE000 <= address && address <= 0xFDFF) // == C000 to DDFF ECHO (not really used) no idea what this is
         {
@@ -228,7 +229,10 @@ public class Memory
         }
         else if (0xD000 <= address && address <= 0xDFFF) // 4kb work ram bank 1
         {
-            workRam[address - 0xD000] = value; // re
+            // bug fix: I had this at - 0xD000. So writing to address 0xD800 or 0xC800 doesn't matter since
+            // they both gave the actual workRam address of 0x800, which is wrong. (we are colliding)
+            // d800 - c000 will now give the correct address
+            workRam[address - 0xC000] = value; // re
         }
         else if (0xE000 <= address && address <= 0xFDFF) // == C000 to DDFF ECHO (not really used) no idea what this is
         {

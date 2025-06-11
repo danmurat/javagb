@@ -64,4 +64,26 @@ Tue 10th Jun:
 
 Wed 11th Jun:
 - check out HALT issue from thoughts.txt (been unable to find what the issue was so far..)
-- handle all the overflow/underflow and flag issues [in progress]
+- handle all the overflow/underflow and flag issues [DONE]
+- check why z flag not being appropriately set [DONE]
+
+3 main issues solved today:
+1. handling overflow and underflow and setting their appropriate flags
+    A lot of our errors simply came from not wrapping our register values around when they under/overflow
+    (0xFF to 0x00 and 0x00 to 0xFF)
+    Also, we were not quite setting our flags correctly. CPU's basically only remember the flag for 1 instruction, until
+    something else changes it. Then it's "gone forever" so to speak. We were not resetting our flags back based off other
+    instructions (like if result wasn't zero, we didn't set the Z flag to OFF, etc..)
+2. Incorrect CALL implementation
+    CALL is like setting a bookmark. You place the NEXT instruction address onto the stack. Then you jump to the value
+    at the immediate address (which will call a RET eventually to go back to your bookmark, as intended by the programmer)
+3. WorkRam memory map bug
+    We "split" work ram into 2 slots from 0xC000 to 0xCFFF and 0xD000 to 0xDFFF but still used a single array for this.
+    The if statement containing the address between 0xD000 and 0xDFFF referred to the same spot as in 0xC000.
+    We did address - 0xC000 in the xC000-xCFFF but also had address - 0xC000 in xD000-xDFFF. Meaning that they both
+    referred to the same spot in workRam[]. This was overriding a few values needed at the 0xC800 address. Code was
+    changed to address - 0xD000 so it now correctly refers to the correct spot (in read and writeByte)
+
+Tomorrow we'll work on some other instruction tests to make sure they're working fully.
+We'll do this for all instructions we've done so far till we feel confident that they are working properly.
+After this we get the 256 prefix instructions implemented also.

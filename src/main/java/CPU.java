@@ -658,7 +658,7 @@ public class CPU {
                 setr8('A', memory.readByte(HL));
                 int value = HL + 1;
                 if (value > 0xFFFF) { // overflow wrap around
-                    value = value - 0xFFFF;
+                    value = value - 0x1000;
                 }
                 HL = value; // docs say no flags affected
             }
@@ -666,7 +666,7 @@ public class CPU {
                 setr8('A', memory.readByte(HL));
                 int value = HL - 1;
                 if (value < 0) { // underflow wrap
-                    value = value + 0xFFFF;
+                    value = value + 0x10000;
                 }
                 HL = value;
             }
@@ -717,10 +717,10 @@ public class CPU {
         final int incrementValue = 1;
         short result = (short) (value + incrementValue);
         setNFlag(false); // 0
-        zFlag_8bit_overflow(result);
         hFlag_8bit_overflow(value, incrementValue);
         // handle overflow (wrap around)
         result = (short) checkAndSetOverflowVal8bit(result);
+        zFlag_8bit_overflow(result); // must be done after result is checked for overflow (applied in below methods too)
 
         setr8(register, result);
 
@@ -733,10 +733,10 @@ public class CPU {
         final int decValue = 1;
         short result = (short) (value - decValue);
         setNFlag(true); // 1
-        zFlag_8bit_borrow(result);
         hFlag_8bit_borrow(value, decValue);
         // handle underflow (wrap around)
         result = (short) checkAndSetUnderflowVal8bit(result);
+        zFlag_8bit_borrow(result);
 
         setr8(register, result);
 
@@ -749,10 +749,10 @@ public class CPU {
         final int incrementValue = 1;
         short result = (short) (addressValue + incrementValue);
         setNFlag(false);
-        zFlag_8bit_overflow(addressValue);
         hFlag_8bit_overflow(addressValue, incrementValue);
         // handle overflow
         result = (short) checkAndSetOverflowVal8bit(result);
+        zFlag_8bit_overflow(addressValue);
 
         memory.writeByte(HL, result);
 
@@ -765,10 +765,10 @@ public class CPU {
         final int decValue = 1;
         short result = (short) (addressValue - decValue);
         setNFlag(true);
-        zFlag_8bit_borrow(result);
         hFlag_8bit_borrow(addressValue, decValue);
         // handle underflow
         result = (short) checkAndSetUnderflowVal8bit(result);
+        zFlag_8bit_borrow(result);
 
         memory.writeByte(HL, result);
 
@@ -804,12 +804,12 @@ public class CPU {
         final int r8Value = getr8(register);
         int result = aValue + r8Value;
 
-        zFlag_8bit_overflow(result);
         setNFlag(false);
         hFlag_8bit_overflow(aValue, r8Value);
         cFlag_8bit_overflow(aValue, r8Value);
         // handle carry (above just set flags..)
         result = (short) checkAndSetOverflowVal8bit(result);
+        zFlag_8bit_overflow(result);
 
         setr8('A', result);
 
@@ -822,12 +822,12 @@ public class CPU {
         final short aValue = (short) getr8('A');
         int result = aValue + addressValue;
 
-        zFlag_8bit_overflow(result);
         setNFlag(false);
         hFlag_8bit_overflow(aValue, addressValue);
         cFlag_8bit_overflow(aValue, addressValue);
 
         result = (short) checkAndSetOverflowVal8bit(result);
+        zFlag_8bit_overflow(result);
 
         setr8('A', result);
 
@@ -840,12 +840,12 @@ public class CPU {
         final short aValue = (short) getr8('A');
         int result = aValue + addressValue;
 
-        zFlag_8bit_overflow(result);
         setNFlag(false);
         hFlag_8bit_overflow(aValue, addressValue);
         cFlag_8bit_overflow(aValue, addressValue);
 
         result = (short) checkAndSetOverflowVal8bit(result);
+        zFlag_8bit_overflow(result);
 
         setr8('A', result);
 
@@ -876,28 +876,28 @@ public class CPU {
                 HL += BC;
                 hFlag_16bit_overflow(initialHLval, BC);
                 if (cFlag_16bit_overflow(initialHLval, BC)) {
-                    HL = HL - 0xFFFF;
+                    HL = HL - 0x10000;
                 }
             }
             case "DE" -> {
                 HL += DE;
                 hFlag_16bit_overflow(initialHLval, DE);
                 if (cFlag_16bit_overflow(initialHLval, DE)) {
-                    HL = HL - 0xFFFF;
+                    HL = HL - 0x10000;
                 }
             }
             case "HL" -> {
                 HL += HL;
                 hFlag_16bit_overflow(initialHLval, initialHLval);
                 if (cFlag_16bit_overflow(initialHLval, initialHLval)) {
-                    HL = HL - 0xFFFF;
+                    HL = HL - 0x10000;
                 }
             }
             case "SP" -> {
                 HL += SP;
                 hFlag_16bit_overflow(initialHLval, SP);
                 if (cFlag_16bit_overflow(initialHLval, SP)) {
-                    HL = HL - 0xFFFF;
+                    HL = HL - 0x10000;
                 }
             }
             default -> throw new RuntimeException("invalid register pair: " + registers + " for ADD HL,r16");
@@ -937,11 +937,11 @@ public class CPU {
         int result = aValue - r8Value;
 
         setNFlag(true);
-        zFlag_8bit_borrow(result);
         hFlag_8bit_borrow(aValue, r8Value);
         cFlag_8bit_borrow(aValue, r8Value);
 
         result = checkAndSetUnderflowVal8bit(result);
+        zFlag_8bit_borrow(result);
 
         setr8('A', result);
 
@@ -955,11 +955,11 @@ public class CPU {
         int result = aValue - addressValue;
 
         setNFlag(true);
-        zFlag_8bit_borrow(result);
         hFlag_8bit_borrow(aValue, addressValue);
         cFlag_8bit_borrow(aValue, addressValue);
 
         result = checkAndSetUnderflowVal8bit(result);
+        zFlag_8bit_borrow(result);
 
         setr8('A', result);
 
@@ -973,11 +973,11 @@ public class CPU {
         int result = aValue - addressValue;
 
         setNFlag(true);
-        zFlag_8bit_borrow(result);
         hFlag_8bit_borrow(aValue, addressValue);
         cFlag_8bit_borrow(aValue, addressValue);
 
         result = checkAndSetUnderflowVal8bit(result);
+        zFlag_8bit_borrow(result);
 
         setr8('A', result);
 
@@ -1203,7 +1203,7 @@ public class CPU {
     private void pop_r16(final char highRegister, final char lowRegister) {
         final short firstSPAddressValue = memory.readByte(SP);
         if (lowRegister == 'F') {
-            setF(firstSPAddressValue); // why shouldn't we put 'F' in setr8() ??
+            setF(firstSPAddressValue);
         } else {
             setr8(lowRegister, firstSPAddressValue);
         }
@@ -1321,7 +1321,6 @@ public class CPU {
 
     // NZ means if Z is NOT set... not n and z are set
     private void jr_nz_e8() {
-        // might be 'or' instead?
         if (!zFlagOn()) {
             jr_e8();
         } else {
@@ -1354,7 +1353,8 @@ public class CPU {
         PC = (pcHighByte << 8) | pcLowByte;
 
         totalMCycles += 4;
-        PC += 1;
+        //PC += 3; // was one, but getting mismatch. Could be because we access 2 bytes worth of SP + 1 PC?
+        // TODO: this might also be 0 (no increment) Since PC is just automaticaly applied? Come back to this and make sure!
     }
 
     private void ret_z() {
@@ -1406,26 +1406,21 @@ public class CPU {
 
     // CALL instructions
 
+    /**
+     * CALL pushes the next instruction's PC to the stack for us to return to later (with RET).
+     * Once pushed, we jump to the address held in PC+1 (next to us)
+     */
     private void call_n16() {
+        final int nextInstrAddr = PC + 3; // CALL is 3 bytes long
+        final int highByte = nextInstrAddr >> 8;
+        final int lowByte = nextInstrAddr & 0xFF;
 
-        /*
-        I think this is wrong..
-        We need to save the address of the NEXT instruction, so that when our subroutine is finished we get back
-        on track.
-        The JP will point us to the subroutine.
-         */
-        // we save the address values to the stack.. but not the actual address (PC), so we don't actually return
-        // correctly...
-        final int highByte = PC >> 8;
-        final int lowByte = PC & 0xFF;
         SP--;
         memory.writeByte(SP, (short) highByte);
         SP--;
         memory.writeByte(SP, (short) lowByte);
 
-        // then implicit jp n16
-        PC = memory.readWord(PC + 1);
-        // should we be calling execute() instruction in here???
+        PC = memory.readWord(PC + 1); // then implicit jp n16
 
         totalMCycles += 6; // no PC increment
     }
@@ -1910,7 +1905,11 @@ public class CPU {
     }
 
     private void xorFlagSets(final int result) {
-        if (result == 0) setZFlag(true);
+        if (result == 0) {
+            setZFlag(true);
+        } else {
+            setZFlag(false);
+        }
         setNFlag(false);
         setHFlag(false);
         setCFlag(false);
@@ -1932,7 +1931,7 @@ public class CPU {
      */
     private int checkAndSetOverflowVal8bit(final int result) {
         if (result > 0xFF) {
-            return result - 0xFF;
+            return result - 0x100; // was 0xFF, but we this doesn't wrap around completely (-256 to get the correct val)
         } else {
             return result;
         }
@@ -1945,7 +1944,7 @@ public class CPU {
      */
     private int checkAndSetUnderflowVal8bit(final int result) {
         if (result < 0) {
-            return result + 0xFF;
+            return result + 0x100; // wrap around
         } else {
             return result;
         }

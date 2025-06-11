@@ -37,8 +37,8 @@ public class Run {
 
         int testFlip = 0xFB;
         System.out.println("Test flip: " + memory.getTwosCompliment(testFlip));
-        while (executionAmount < 1000) {
-        //while (true) {
+        //while (executionAmount < 17467) {
+        while (true) {
             //System.out.print(executionAmount + ": ");
             //cpu.printPC();
             logState(cpu); // every instr
