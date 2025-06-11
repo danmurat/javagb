@@ -45,7 +45,7 @@ public class Memory
     private short STAT = 0x00; // at 0xFF41
     private short SCY = 0x00; // scroll y at 0xFF42
     private short SCX = 0x00; // scroll x at 0xFF43
-    private short LY = 0x00; // at FF44
+    private short LY = 0x90; // at FF44 (0x90 for GB DOCTOR!!)
     private short LYC = 0x00; // at FF45
     private short WY = 0x00; // window y pos at FF4A
     private short WX = 0x00; // window x pos (-7) at FF4B
@@ -106,32 +106,34 @@ public class Memory
         }
         else if (0x8000 <= address && address <= 0x9FFF) // 8kb VRAM
         {
-            return videoRam[0x8000 - address]; // minus is to get absolute position
+            return videoRam[address - 0x8000]; // minus is to get absolute position
         }
         else if (0xA000 <= address && address <= 0xBFFF) // 8kb external ram
         {
-            return externalRam[0xA000 - address];
+            return externalRam[address - 0xA000];
         }
         else if (0xC000 <= address && address <= 0xCFFF) // 4kb work ram Bank 0
         {
-            return workRam[0xC000 - address];
+            return workRam[address - 0xC000];
         }
         else if (0xD000 <= address && address <= 0xDFFF) // 4kb work ram bank 1
         {
-            return workRam[0xD000 - address]; // re
+            return workRam[address - 0xD000]; // re
         }
         else if (0xE000 <= address && address <= 0xFDFF) // == C000 to DDFF ECHO (not really used) no idea what this is
         {
-            return echo[0xE000 - address];
+            return echo[address - 0xE000];
         }
         else if (0xFE00 <= address && address <= 0xFE9F) // sprite attribute table
         {
-            return spriteTable[0xFE00 - address];
+            return spriteTable[address - 0xFE00];
         }
-        else if (0xFEA0 <= address && address <= 0xFEFF) // not usable ...
+       else if (0xFEA0 <= address && address <= 0xFEFF) // not usable ...
         {
             // TODO: return something appropriate
-            throw new RuntimeException("implement do nothing for addresses 0xFEA0 to 0xFEFF");
+            //throw new RuntimeException("implement do nothing for addresses 0xFEA0 to 0xFEFF");
+            // for now just return 0
+            return 0;
         }
         else if (0xFF00 <= address && address <= 0xFF7F) // IO ports
         {
@@ -175,12 +177,12 @@ public class Memory
                 case 0xFF4B:
                     return WX;
                 default:
-                    throw new RuntimeException("unknown address 0x" + Integer.toHexString(address));
+                    return ioMem[address - 0xFF00];
             }
         }
         else if (0xFF80 <= address && address <= 0xFFFE) // high ram
         {
-            return highRam[0xFF80 - address];
+            return highRam[address - 0xFF80];
         }
         else if (address == 0xFFFF) // Interrupt enable register
         {
@@ -214,27 +216,27 @@ public class Memory
         }
         else if (0x8000 <= address && address <= 0x9FFF) // 8kb VRAM
         {
-            videoRam[0x8000 - address] = value; // minus is to get absolute position
+            videoRam[address - 0x8000] = value; // minus is to get absolute position
         }
         else if (0xA000 <= address && address <= 0xBFFF) // 8kb external ram
         {
-            externalRam[0xA000 - address] = value;
+            externalRam[address - 0xA000] = value;
         }
         else if (0xC000 <= address && address <= 0xCFFF) // 4kb work ram Bank 0
         {
-            workRam[0xC000 - address] = value;
+            workRam[address - 0xC000] = value;
         }
         else if (0xD000 <= address && address <= 0xDFFF) // 4kb work ram bank 1
         {
-            workRam[0xD000 - address] = value; // re
+            workRam[address - 0xD000] = value; // re
         }
         else if (0xE000 <= address && address <= 0xFDFF) // == C000 to DDFF ECHO (not really used) no idea what this is
         {
-            echo[0xE000 - address] = value;
+            echo[address - 0xE000] = value;
         }
         else if (0xFE00 <= address && address <= 0xFE9F) // sprite attribute table
         {
-            spriteTable[0xFE00 - address] = value;
+            spriteTable[address - 0xFE00] = value;
         }
         else if (0xFEA0 <= address && address <= 0xFEFF) // not usable ...
         {
@@ -265,12 +267,12 @@ public class Memory
                 case 0xFF49 -> OBP1 = value;
                 case 0xFF4A -> WY = value;
                 case 0xFF4B -> WX = value;
-                default -> throw new RuntimeException("unknown address 0x" + Integer.toHexString(address));
+                default -> ioMem[address - 0xFF00] = value;
             }
         }
         else if (0xFF80 <= address && address <= 0xFFFE) // high ram
         {
-            highRam[0xFF80 - address] = value;
+            highRam[address - 0xFF80] = value;
         }
         else if (address == 0xFFFF) // Interrupt enable register
         {
@@ -293,7 +295,7 @@ public class Memory
      */
     public int readWord(final int address) {
         // little endian
-        return readByte(address) | (readByte(address+1) << 8);
+        return (readByte(address+1) << 8) | readByte(address);
     }
 
     /**
@@ -388,6 +390,15 @@ public class Memory
         IF = (short) (IF & 0b11101111);
     }
 
+    public int getTwosCompliment(int num) {
+        // most significant bit == 1, it's negative
+        if ((num & 0b10000000) == 0b10000000) {
+            return -((~num + 1) & 0xFF); // flip all bits, add 1 (xFF ensures we keep only 8 bits)
+        } else {
+            return num;
+        }
+    }
+
     /**
      * Helps with testing. <br>
      * It handles a few cases so that it looks perfectly symmetrical.
@@ -439,7 +450,7 @@ public class Memory
      * Dumps data from rom file into our array
      * @param romName the name of our rom we run
      */
-    private void loadRom(String romName) throws IOException
+    private void loadRom(final String romName) throws IOException
     {
         final FileInputStream romFile = new FileInputStream(ROM_PATH + romName);
         int addressCounter = 0;
@@ -447,8 +458,7 @@ public class Memory
         {
             romData[addressCounter++] = (short)romFile.read();
 
-            if (addressCounter == romData.length)
-            {
+            if (addressCounter == romData.length) {
                 romFile.close(); // TODO: we may be closing this too early? Roms can have more data in them than total mem size
                 break;
             }

@@ -18,3 +18,75 @@ info from IF and IE to check both flags for the same thing are set.
  This would only run if the Interrupt cases match (joypad IF IE and IME are set).
 
  There is a service routine that happens before control is given to interrupt handler however.
+
+
+ ISSUE: our SP increments out of bounds (over xFFFF).
+
+ At first we were still incrementing PC after JP instructions, which out of bounded us within 3 instructions
+ (called a ret() quickly which incremented SP by 2, but SP started at xFFFE, so became x10000...).
+
+ After removing the PC increment of JP (which was the 2nd instruction called) we are able to run over 900 more
+ instructions before SP going out of bounds again. So we need to keep track of what's happening to
+ SP as our programme runs.
+
+
+I love bella sooooo much - she is like the bestest evaarrrrrr
+
+
+
+The programme seems to be stuck in a ret loop?
+We are..
+
+We call ret(), which applies the address value of SP to PC (which always == 0x00). PC = 0x00, increments 1 to 0x01
+and ends up calling ret() again because location 0x01 gives instruction 0xC9, which is ret(), and the same happens
+continuously.
+- Are we wrongly incrementing PC += 1 on ret()?
+- Or did something go wrong in the instructions beforehand?
+
+
+Removing PC increment just delays the same issue, without it, PC = 0x00, which calls nop(), increments PC +=1 anyway
+and calls ret(), doing the same thing again.
+
+SP jumps from fffe to dfff at instruction 5. Then from dfff to e001 at instruction 35, where we just continuously
+increment till out of bounds.
+
+Instructions execution:
+nop(), jp_n16(), jp_n16(), di(), ld_sp_n16() (SP = xDFFF), ld_pn16_a() (address xD600 written with A value)
+ld_r8_n8(A) (a = 0x00), ldh_pn16_a() (ISSUE HERE)
+
+It seems like we're doing ldh_[n16] .. wrong. We thought it meant that the value of PC + 1 should be between
+xff00 and xffff. But the instruction should work just like ldh [c] .. where we just access the value at xff00 + byte
+at pc+1
+
+
+New issue: PC out of bounds at 39089 executions.
+
+Programme seems to run normally until we get into a ret loop. PC stays at 1 for a long time (reading the SP address
+values) until it finally reads a proper value (x7701). In the hex dump, x7700 onwards just have 0x00 until x8000.
+At 0x8000, we have value 0xC3, which is a JP. This should make the PC = xC220, but PC just continuously increments
+as if it has read no instructions.
+- The values at x8000 could have been moved by the time we reached it..
+
+PC gets to 0x2b6 until it goes to ret loop (stays at 0x1 for a while)
+
+Suspicious:
+di() is called after the first 2 jumps, even though IME is already false??
+7th instruction ldh [n16] a. A = x00. and loads xFF07 with x00. xFF07 is IO address for TAC. (should this be x00)?
+9th instruct ldh [n16] a again loads 0x00 to xFF0F (IF interrupt) (not sure if this is simply making sure these values are reset?)
+11th xFFFF (IE) loaded with A (x00)
+13th xFF26 (not specific) loaded with A (0x00)
+... then some values are loaded to xFF.. like 0xFF, x77 (on sheet)
+
+instruction 21, we do a CALL n16. We push the values of the addresses of PC to the stack, but not PC itself.
+I wonder if this is wrong? I think it is.
+
+CALL should push pc to stack, so when it runs its subroutine, ret can pop it again. But ret makes PC = to the
+address values, not the actual address. So we don't continue where we left off.
+
+FIXED!
+
+
+NEW ISSUE: on HALT, programme does nothing infinitely.
+
+HALT only resumes when an interrupt is already pending (which probably should be happening anyway). So an
+interrupt is not set for some reason.

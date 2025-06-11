@@ -29,7 +29,6 @@ public class CPU {
 
     private int SP;
     private int PC;
-    private int pcAccess = PC + 1;
 
     private boolean IME; // interrupt master enable flag (write only)
     private boolean eiTurnImeOn; // ei turns IME on after the next instruction (so we use this to check in executeInstr())
@@ -56,24 +55,62 @@ public class CPU {
      */
     private int totalMCycles;
 
+    // DEBUGGING ONLY
+    private int currentOpcode = 0;
+
     /**
      * Constructs..
      */
     public CPU(final Memory memory) {
         this.memory = memory;
 
-        // initialise all to 0
-        AF = 0;
-        BC = 0;
-        DE = 0;
-        HL = 0;
-        SP = 0;     // stack pointer
-        PC = 0x100; // program counter
+        // addresses after boot rom
+        AF = 0x01B0;
+        BC = 0x0013;
+        DE = 0x00D8;
+        HL = 0x014D;
+        SP = 0xFFFE;
+        PC = 0x100;
 
         IME = false;
         eiTurnImeOn = false;
 
         totalMCycles = 0;
+    }
+
+    // FOR TESTING
+    public void printSP() {
+        System.out.println(Integer.toHexString(SP));
+    }
+    public void printPC() {
+        System.out.print("PC=" + Integer.toHexString(PC));
+    }
+    public void printOP() {
+        System.out.print(" OPCODE=" + Integer.toHexString(currentOpcode));
+    }
+
+    // GETTERS FOR TESTING
+    public int getOP() {
+        return currentOpcode;
+    }
+    public int get8bitReg(char reg) {
+        return getr8(reg);
+    }
+    public int getFreg() {
+        return getF();
+    }
+    public int getSP() {
+        return SP;
+    }
+    public int getPC() {
+        return PC;
+    }
+    public int[] getPCmem() { // returns pc,pc+1,pc+2 and pc+3
+        int[] mem = new int[4];
+        for (int i = 0; i < 4; i++) {
+            mem[i] = memory.readByte(PC + i);
+        }
+        return mem;
     }
 
     /**
@@ -85,9 +122,10 @@ public class CPU {
         // fetch
         if (!eiTurnImeOn) {
             if (IME) {
-                interruptHandle(); // attempt to handle (redirects PC to handle even)
+                interruptHandle(); // attempt to handle (redirects PC to handle event)
             }
             final short opcode = memory.readByte(PC);
+            currentOpcode = opcode; // DEBUG STATEMENT (a global opcode)
             instructionCall(opcode);
         } else {
             if (IME) {
@@ -247,7 +285,7 @@ public class CPU {
             case 0x73 -> ld_phl_r8('E');
             case 0x74 -> ld_phl_r8('H');
             case 0x75 -> ld_phl_r8('L');
-            case 0x76 -> halt(); // TODO!!!
+            case 0x76 -> halt();
             case 0x77 -> ld_phl_r8('A');
             case 0x78 -> ld_r8_r8('A', 'B');
             case 0x79 -> ld_r8_r8('A', 'C');
@@ -351,7 +389,7 @@ public class CPU {
             case 0xD6 -> sub_a_n8();
             case 0xD7 -> rst(0x10);
             case 0xD8 -> ret_c();
-            case 0xD9 -> reti(); // TODO: fully implement this
+            case 0xD9 -> reti();
             case 0xDA -> jp_c_n16();
             case 0xDC -> call_c_n16();
             case 0xDE -> sbc_a_n8();
@@ -372,14 +410,14 @@ public class CPU {
             case 0xF0 -> ldh_a_pn16();
             case 0xF1 -> pop_af();
             case 0xF2 -> ldh_a_pc();
-            case 0xF3 -> di(); // TODO!!!
+            case 0xF3 -> di();
             case 0xF5 -> push_r16('A', 'F');
             case 0xF6 -> or_a_n8();
             case 0xF7 -> rst(0x30);
             case 0xF8 -> ld_hl_spe8();
             case 0xF9 -> ld_sp_hl();
             case 0xFA -> ld_a_pn16();
-            case 0xFB -> ei(); // TODO!!!
+            case 0xFB -> ei();
             case 0xFE -> cp_a_n8();
             case 0xFF -> rst(0x38);
 
@@ -493,7 +531,7 @@ public class CPU {
     }
 
     private void ld_r8_n8(final char register) {
-        final short value = memory.readByte(pcAccess);
+        final short value = memory.readByte(PC + 1);
         setr8(register, value); // are we making sure we're not setting F?
 
         totalMCycles += 2;
@@ -516,7 +554,7 @@ public class CPU {
     }
 
     private void ld_phl_n8() {
-        final short value = memory.readByte(pcAccess);
+        final short value = memory.readByte(PC + 1);
         memory.writeByte(HL, value);
 
         totalMCycles += 3;
@@ -542,30 +580,42 @@ public class CPU {
     }
 
     private void ldh_pn16_a() {
-        if (0xFF00 <= pcAccess && pcAccess <= 0xFFFF) {
+        // this might be wrong
+        // 'provided address is between ...
+        // apparanlty, this isn't a case that we need to satisfy?? it should be written at xff00 + A value
+        // (which won't be more than xff...)
+        // essentially, this is the same as above (ldh [c] ..) but we get byte at PC+1 + 0xFF00
+       /* if (0xFF00 <= (PC + 1) && (PC + 1) <= 0xFFFF) {
             ld_pn16_a();
-        }
+        }*/
+        final int address = 0xFF00 | memory.readByte(PC + 1);
+        memory.writeByte(address, (short) getr8('A'));
+
         totalMCycles += 3; // TODO: should these be inside the if?? does the cycles/pc still increment if PC is not in a suitable place?
         PC += 2;
     }
 
     private void ldh_a_pn16() {
-        if (0xFF00 <= pcAccess && pcAccess <= 0xFFFF) {
+        /*if (0xFF00 <= (PC + 1) && (PC + 1) <= 0xFFFF) {
             ld_a_pn16();
-        }
+        }*/
+        final int address = 0xFF00 | memory.readByte(PC + 1);
+        final short value = memory.readByte(address);
+        setr8('A', value);
+
         totalMCycles += 3;
         PC += 2;
     }
     // [n] means we go to the address of the address that PC points to
     private void ld_pn16_a() {
-        final int address = memory.readWord(pcAccess);
+        final int address = memory.readWord(PC + 1);
         memory.writeByte(address, (short) getr8('A'));
         totalMCycles += 4;
         PC += 3;
     }
 
     private void ld_a_pn16() {
-        final int address = memory.readWord(pcAccess);
+        final int address = memory.readWord(PC + 1);
         setr8('A', memory.readByte(address));
         totalMCycles += 4;
         PC += 3;
@@ -573,7 +623,7 @@ public class CPU {
 
 
     private void ld_r16_n16(final String registers) {
-        setr16(registers, memory.readWord(pcAccess));
+        setr16(registers, memory.readWord(PC + 1));
 
         totalMCycles += 3;
         PC += 3;
@@ -606,11 +656,19 @@ public class CPU {
             case "DE" -> setr8('A', memory.readByte(DE));
             case "HL+" -> {
                 setr8('A', memory.readByte(HL));
-                HL++;
+                int value = HL + 1;
+                if (value > 0xFFFF) { // overflow wrap around
+                    value = value - 0xFFFF;
+                }
+                HL = value; // docs say no flags affected
             }
             case "HL-" -> {
                 setr8('A', memory.readByte(HL));
-                HL--;
+                int value = HL - 1;
+                if (value < 0) { // underflow wrap
+                    value = value + 0xFFFF;
+                }
+                HL = value;
             }
             default -> throw new RuntimeException("invalid register: " + registers + " for LD a,pr16");
         }
@@ -619,7 +677,7 @@ public class CPU {
     }
 
     private void ld_pn16_sp() {
-        final int address = memory.readWord(pcAccess);
+        final int address = memory.readWord(PC + 1);
         memory.writeWord(address, SP); // handles the low/high bytes
 
         totalMCycles += 5;
@@ -634,7 +692,7 @@ public class CPU {
     }
 
     private void ld_hl_spe8() {
-        final int addressValue = memory.readByte(pcAccess); // signed
+        final int addressValue = memory.readByte(PC + 1); // signed
         SP += addressValue;
         setr16("HL", SP);
 
@@ -655,48 +713,64 @@ public class CPU {
 
     // inc/dec_r8 0x04/05/0C/0D to 0x34/35/3C/3D
     private void inc_r8(final char register) {
-        short value = (short) getr8(register); // getr8 will throw if invalid register
-        value++;
-        setr8(register, value);
-
+        final short value = (short) getr8(register); // getr8 will throw if invalid register
+        final int incrementValue = 1;
+        short result = (short) (value + incrementValue);
         setNFlag(false); // 0
-        zFlagHFlag_8bit_overflow(value);
+        zFlag_8bit_overflow(result);
+        hFlag_8bit_overflow(value, incrementValue);
+        // handle overflow (wrap around)
+        result = (short) checkAndSetOverflowVal8bit(result);
+
+        setr8(register, result);
 
         totalMCycles += 1;
         PC += 1;
     }
 
     private void dec_r8(final char register) {
-        short value = (short) getr8(register);
-        value--;
-        setr8(register, value);
-
+        final short value = (short) getr8(register);
+        final int decValue = 1;
+        short result = (short) (value - decValue);
         setNFlag(true); // 1
-        zFlagHFlag_8bit_borrow(value);
+        zFlag_8bit_borrow(result);
+        hFlag_8bit_borrow(value, decValue);
+        // handle underflow (wrap around)
+        result = (short) checkAndSetUnderflowVal8bit(result);
+
+        setr8(register, result);
 
         totalMCycles += 1;
         PC += 1;
     }
 
     private void inc_phl() {
-        short addressValue = memory.readByte(HL);
-        addressValue++;
-        memory.writeByte(HL, addressValue);
-
+        final short addressValue = memory.readByte(HL);
+        final int incrementValue = 1;
+        short result = (short) (addressValue + incrementValue);
         setNFlag(false);
-        zFlagHFlag_8bit_overflow(addressValue);
+        zFlag_8bit_overflow(addressValue);
+        hFlag_8bit_overflow(addressValue, incrementValue);
+        // handle overflow
+        result = (short) checkAndSetOverflowVal8bit(result);
+
+        memory.writeByte(HL, result);
 
         totalMCycles += 3;
         PC += 1;
     }
 
     private void dec_phl() {
-        short addressValue = memory.readByte(HL);
-        addressValue--;
-        memory.writeByte(HL, addressValue);
-
+        final short addressValue = memory.readByte(HL);
+        final int decValue = 1;
+        short result = (short) (addressValue - decValue);
         setNFlag(true);
-        zFlagHFlag_8bit_borrow(addressValue);
+        zFlag_8bit_borrow(result);
+        hFlag_8bit_borrow(addressValue, decValue);
+        // handle underflow
+        result = (short) checkAndSetUnderflowVal8bit(result);
+
+        memory.writeByte(HL, result);
 
         totalMCycles += 3;
         PC += 1;
@@ -707,6 +781,8 @@ public class CPU {
         int registerValue = getr16(registers);
         registerValue++;
         setr16(registers, registerValue);
+        // NO FLAGS AFFECTED, so we won't handle overflow/underflow for now
+        // TODO: come back to this. Make sure we DO or DON't need to handle this!
 
         totalMCycles += 2;
         PC += 1;
@@ -726,23 +802,34 @@ public class CPU {
     private void add_a_r8(final char register) {
         final int aValue = getr8('A');
         final int r8Value = getr8(register);
-        final int addedValue = aValue + r8Value;
-        setr8('A', addedValue);
-        zFlagHFlagCFlag_8bit_overflow('A', addedValue);
+        int result = aValue + r8Value;
+
+        zFlag_8bit_overflow(result);
         setNFlag(false);
+        hFlag_8bit_overflow(aValue, r8Value);
+        cFlag_8bit_overflow(aValue, r8Value);
+        // handle carry (above just set flags..)
+        result = (short) checkAndSetOverflowVal8bit(result);
+
+        setr8('A', result);
 
         totalMCycles += 1;
         PC += 1;
     }
 
     private void add_a_n8() {
-        final short addressValue = memory.readByte(pcAccess);
+        final short addressValue = memory.readByte(PC + 1);
         final short aValue = (short) getr8('A');
-        final int addedValue = aValue + addressValue;
-        setr8('A', addedValue);
+        int result = aValue + addressValue;
 
+        zFlag_8bit_overflow(result);
         setNFlag(false);
-        zFlagHFlagCFlag_8bit_overflow('A', addedValue);
+        hFlag_8bit_overflow(aValue, addressValue);
+        cFlag_8bit_overflow(aValue, addressValue);
+
+        result = (short) checkAndSetOverflowVal8bit(result);
+
+        setr8('A', result);
 
         totalMCycles += 2;
         PC += 2;
@@ -751,45 +838,67 @@ public class CPU {
     private void add_a_phl() {
         final short addressValue = memory.readByte(HL); // TODO: basically dupelicate with add a,n8
         final short aValue = (short) getr8('A');
-        final int addedValue = aValue + addressValue;
-        setr8('A', addedValue);
+        int result = aValue + addressValue;
 
+        zFlag_8bit_overflow(result);
         setNFlag(false);
-        zFlagHFlagCFlag_8bit_overflow('A', addedValue);
+        hFlag_8bit_overflow(aValue, addressValue);
+        cFlag_8bit_overflow(aValue, addressValue);
+
+        result = (short) checkAndSetOverflowVal8bit(result);
+
+        setr8('A', result);
 
         totalMCycles += 2;
         PC += 1;
     }
 
     private void add_sp_e8() {
-        final short addressValue = memory.readByte(pcAccess); // TODO: e8 is signed!! not unsigned (not sure what we need to do)
-        SP += addressValue;
+        final int originalSPVal = SP;
+        final short addressValue = memory.readByte(PC + 1);
+        // two's compliment, like in JR Z instr
+        final short signedVal = (short) memory.getTwosCompliment(addressValue);
+        SP += signedVal;
 
         setZFlag(false);
         setNFlag(false);
-        hFlagCFlag_8bit_overflow(SP);
+        cFlag_8bit_overflow(originalSPVal, signedVal);
+        hFlag_8bit_overflow(originalSPVal, signedVal);
 
         totalMCycles += 4;
         PC += 2;
     }
 
     private void add_hl_r16(final String registers) {
+        final int initialHLval = HL;
         switch (registers) {
             case "BC" -> {
                 HL += BC;
-                hFlagCFlag_16bit_overflow("HL", HL);
+                hFlag_16bit_overflow(initialHLval, BC);
+                if (cFlag_16bit_overflow(initialHLval, BC)) {
+                    HL = HL - 0xFFFF;
+                }
             }
             case "DE" -> {
                 HL += DE;
-                hFlagCFlag_16bit_overflow("HL", HL);
+                hFlag_16bit_overflow(initialHLval, DE);
+                if (cFlag_16bit_overflow(initialHLval, DE)) {
+                    HL = HL - 0xFFFF;
+                }
             }
             case "HL" -> {
                 HL += HL;
-                hFlagCFlag_16bit_overflow("HL", HL);
+                hFlag_16bit_overflow(initialHLval, initialHLval);
+                if (cFlag_16bit_overflow(initialHLval, initialHLval)) {
+                    HL = HL - 0xFFFF;
+                }
             }
             case "SP" -> {
                 HL += SP;
-                hFlagCFlag_16bit_overflow("HL", HL);
+                hFlag_16bit_overflow(initialHLval, SP);
+                if (cFlag_16bit_overflow(initialHLval, SP)) {
+                    HL = HL - 0xFFFF;
+                }
             }
             default -> throw new RuntimeException("invalid register pair: " + registers + " for ADD HL,r16");
         }
@@ -825,14 +934,16 @@ public class CPU {
     private void sub_a_r8(final char register) { // for a case, z flag should always be true, and h/c flags to false
         final short aValue = (short) getr8('A'); // below code should still work correct for a case regardless
         final short r8Value = (short) getr8(register);
-        final int subValue = aValue - r8Value;
-        setr8('A', subValue);
+        int result = aValue - r8Value;
 
-        zFlagHFlag_8bit_borrow(subValue); // use this, since we can check c flag in this method
         setNFlag(true);
-        if (r8Value > aValue) {
-            setCFlag(true);
-        }
+        zFlag_8bit_borrow(result);
+        hFlag_8bit_borrow(aValue, r8Value);
+        cFlag_8bit_borrow(aValue, r8Value);
+
+        result = checkAndSetUnderflowVal8bit(result);
+
+        setr8('A', result);
 
         totalMCycles += 1;
         PC += 1;
@@ -841,14 +952,16 @@ public class CPU {
     private void sub_a_phl() {
         final short aValue = (short) getr8('A');
         final short addressValue = memory.readByte(HL);
-        final int subValue = aValue - addressValue;
-        setr8('A', subValue);
+        int result = aValue - addressValue;
 
-        zFlagHFlag_8bit_borrow(subValue);
         setNFlag(true);
-        if (addressValue > aValue) {
-            setCFlag(true);
-        }
+        zFlag_8bit_borrow(result);
+        hFlag_8bit_borrow(aValue, addressValue);
+        cFlag_8bit_borrow(aValue, addressValue);
+
+        result = checkAndSetUnderflowVal8bit(result);
+
+        setr8('A', result);
 
         totalMCycles += 2;
         PC += 1;
@@ -856,15 +969,17 @@ public class CPU {
 
     private void sub_a_n8() {
         final short aValue = (short) getr8('A');
-        final short addressValue = memory.readByte(pcAccess);
-        final int subValue = aValue - addressValue;
-        setr8('A', subValue);
+        final short addressValue = memory.readByte(PC + 1);
+        int result = aValue - addressValue;
 
-        zFlagHFlag_8bit_borrow(subValue);
         setNFlag(true);
-        if (addressValue > aValue) {
-            setCFlag(true);
-        }
+        zFlag_8bit_borrow(result);
+        hFlag_8bit_borrow(aValue, addressValue);
+        cFlag_8bit_borrow(aValue, addressValue);
+
+        result = checkAndSetUnderflowVal8bit(result);
+
+        setr8('A', result);
 
         totalMCycles += 2;
         PC += 2;
@@ -920,7 +1035,7 @@ public class CPU {
 
     private void and_a_n8() {
         final short aValue = (short) getr8('A');
-        final short addressValue = memory.readByte(pcAccess);
+        final short addressValue = memory.readByte(PC + 1);
         final int andResult = aValue & addressValue;
         setr8('A', andResult);
 
@@ -956,7 +1071,7 @@ public class CPU {
 
     private void xor_a_n8() {
         final short aValue = (short) getr8('A');
-        final short addressValue = memory.readByte(pcAccess);
+        final short addressValue = memory.readByte(PC + 1);
         final int xorResult = aValue ^ addressValue;
         setr8('A', xorResult);
 
@@ -993,7 +1108,7 @@ public class CPU {
 
     private void or_a_n8() {
         final short aValue = (short) getr8('A');
-        final short addressValue = memory.readByte(pcAccess);
+        final short addressValue = memory.readByte(PC + 1);
         final int orResult = aValue | addressValue;
         setr8('A', orResult);
 
@@ -1022,10 +1137,11 @@ public class CPU {
     private void cp_a_r8(final char register) {
         final short aValue = (short) getr8('A');
         final short r8Value = (short) getr8(register);
-        final int subValue = aValue - r8Value;
+        final int result = aValue - r8Value;
 
-        zFlagHFlag_8bit_borrow(subValue);
+        zFlag_8bit_borrow(result);
         setNFlag(true);
+        hFlag_8bit_borrow(aValue, r8Value);
         if (r8Value > aValue) {
             setCFlag(true);
         }
@@ -1037,10 +1153,11 @@ public class CPU {
     private void cp_a_phl() {
         final short aValue = (short) getr8('A');
         final short addressValue = memory.readByte(HL);
-        final int subValue = aValue - addressValue;
+        final int result = aValue - addressValue;
 
-        zFlagHFlag_8bit_borrow(subValue);
+        zFlag_8bit_borrow(result);
         setNFlag(true);
+        hFlag_8bit_borrow(aValue, addressValue);
         if (addressValue > aValue) {
             setCFlag(true);
         }
@@ -1051,11 +1168,12 @@ public class CPU {
 
     private void cp_a_n8() {
         final short aValue = (short) getr8('A');
-        final short addressValue = memory.readByte(pcAccess);
-        final int subValue = aValue - addressValue;
+        final short addressValue = memory.readByte(PC + 1);
+        final int result = aValue - addressValue;
 
-        zFlagHFlag_8bit_borrow(subValue);
+        zFlag_8bit_borrow(result);
         setNFlag(true);
+        hFlag_8bit_borrow(aValue, addressValue);
         if (addressValue > aValue) {
             setCFlag(true);
         }
@@ -1072,7 +1190,11 @@ public class CPU {
         SP--;
         memory.writeByte(SP, (short) getr8(highRegister));
         SP--;
-        memory.writeByte(SP, (short) getr8(lowRegister));
+        if (lowRegister == 'F') {
+            memory.writeByte(SP, (short) getF());
+        } else {
+            memory.writeByte(SP, (short) getr8(lowRegister));
+        }
 
         totalMCycles += 4;
         PC += 1;
@@ -1080,7 +1202,11 @@ public class CPU {
 
     private void pop_r16(final char highRegister, final char lowRegister) {
         final short firstSPAddressValue = memory.readByte(SP);
-        setr8(lowRegister, firstSPAddressValue);
+        if (lowRegister == 'F') {
+            setF(firstSPAddressValue); // why shouldn't we put 'F' in setr8() ??
+        } else {
+            setr8(lowRegister, firstSPAddressValue);
+        }
         SP++;
 
         final short secondSPAddressValue = memory.readByte(SP);
@@ -1110,10 +1236,9 @@ public class CPU {
     // JP instructions (jump)
 
     private void jp_n16() {
-        PC = memory.readWord(pcAccess); // pc becomes the value of the immediate 2 address' values
+        PC = memory.readWord(PC + 1); // pc becomes the value of the immediate 2 address' values
 
-        totalMCycles += 4;
-        PC += 3; // TODO: should this be incremented at all??
+        totalMCycles += 4; // no pc increments
     }
 
     private void jp_z_n16() {
@@ -1135,7 +1260,7 @@ public class CPU {
     }
 
     private void jp_nz_n16() {
-        if (nFlagOn() && zFlagOn()) {
+        if (!zFlagOn()) {
             jp_n16();
         } else {
             totalMCycles += 3;
@@ -1144,7 +1269,7 @@ public class CPU {
     }
 
     private void jp_nc_n16() {
-        if (nFlagOn() && cFlagOn()) {
+        if (!cFlagOn()) {
             jp_n16();
         } else {
             totalMCycles += 3;
@@ -1156,18 +1281,24 @@ public class CPU {
         PC = HL;
 
         totalMCycles += 1;
-        PC += 1; // should we be doing this?
+        //PC += 1; // should we be doing this?
     }
 
     // JR instructions (Relative jump)
 
     // e8 is signed (so we can jump forwards 128 or backwards 127).
     private void jr_e8() {
-        final short addressValueOffset = memory.readByte(pcAccess);
-        PC += addressValueOffset; // relative jump (PC = PC + offset (where offset can be negative value))
+        final int followingAddr = PC + 2; // addr we end up if offset is 0 anyway (next instr)
+        final int offsetVal = memory.readByte(PC + 1);
+
+        // twos compliment offset
+        final int offset = memory.getTwosCompliment(offsetVal);
+
+        PC = followingAddr + offset;
 
         totalMCycles += 3;
-        PC += 2;
+        // comment out for now, because we already change PC to + 2 regardless
+        //PC += 2; // without incrementing, we get into inf loop
     }
 
     private void jr_z_e8() {
@@ -1188,8 +1319,10 @@ public class CPU {
         }
     }
 
+    // NZ means if Z is NOT set... not n and z are set
     private void jr_nz_e8() {
-        if (nFlagOn() && zFlagOn()) {
+        // might be 'or' instead?
+        if (!zFlagOn()) {
             jr_e8();
         } else {
             totalMCycles += 2;
@@ -1198,7 +1331,7 @@ public class CPU {
     }
 
     private void jr_nc_e8() {
-        if (nFlagOn() && cFlagOn()) {
+        if (!cFlagOn()) {
             jr_e8();
         } else {
             totalMCycles += 2;
@@ -1212,7 +1345,7 @@ public class CPU {
     private void ret() {
         final short firstSPAddressValue = memory.readByte(SP);
         final int pcLowByte = firstSPAddressValue;
-        SP++;
+        SP++; // guess we only need to increment once?
 
         final short secondSPAddressValue = memory.readByte(SP);
         final int pcHighByte = secondSPAddressValue;
@@ -1245,7 +1378,7 @@ public class CPU {
     }
 
     private void ret_nz() {
-        if (nFlagOn() && zFlagOn()) {
+        if (!zFlagOn()) {
             ret();
             totalMCycles += 1;
         } else {
@@ -1255,7 +1388,7 @@ public class CPU {
     }
 
     private void ret_nc() {
-        if (nFlagOn() && cFlagOn()) {
+        if (!cFlagOn()) {
             ret();
             totalMCycles += 1;
         } else {
@@ -1274,18 +1407,27 @@ public class CPU {
     // CALL instructions
 
     private void call_n16() {
-        final short lowByte = memory.readByte(pcAccess);
-        final short highByte = memory.readByte(pcAccess + 1);
+
+        /*
+        I think this is wrong..
+        We need to save the address of the NEXT instruction, so that when our subroutine is finished we get back
+        on track.
+        The JP will point us to the subroutine.
+         */
+        // we save the address values to the stack.. but not the actual address (PC), so we don't actually return
+        // correctly...
+        final int highByte = PC >> 8;
+        final int lowByte = PC & 0xFF;
         SP--;
-        memory.writeByte(SP, highByte);
+        memory.writeByte(SP, (short) highByte);
         SP--;
-        memory.writeByte(SP, lowByte);
+        memory.writeByte(SP, (short) lowByte);
 
         // then implicit jp n16
-        PC = memory.readWord(pcAccess);
+        PC = memory.readWord(PC + 1);
+        // should we be calling execute() instruction in here???
 
-        totalMCycles += 6;
-        PC += 3;
+        totalMCycles += 6; // no PC increment
     }
 
     private void call_z_n16() {
@@ -1307,7 +1449,7 @@ public class CPU {
     }
 
     private void call_nz_n16() {
-        if (nFlagOn() && zFlagOn()) {
+        if (!zFlagOn()) {
             call_n16();
         } else {
             totalMCycles += 3;
@@ -1316,7 +1458,7 @@ public class CPU {
     }
 
     private void call_nc_n16() {
-        if (nFlagOn() && cFlagOn()) {
+        if (!cFlagOn()) {
             call_n16();
         } else {
             totalMCycles += 3;
@@ -1677,50 +1819,85 @@ public class CPU {
 
     // Flag set cases
 
-    private void zFlagHFlagCFlag_8bit_overflow(final char register, final int value) {
-        if (value == 0) {
+    private void zFlag_8bit_overflow(final int result) {
+        if (result == 0) {
             setZFlag(true);
-        } else if (value > 0xFF) {
-            setCFlag(true);
-            setr8(register, 0); // reset to 0 so value remains correct
-        } else if (value > 0xF) {
-            setHFlag(true);
+        } else {
+            setZFlag(false);
         }
     }
 
-    private void zFlagHFlag_8bit_overflow(final int value) {
-        if (value == 0) {
-            setZFlag(true);
-        } else if (value > 0xF) { // set if overflow from bit 3
-            setHFlag(true);
-        }
-    }
+    private void hFlag_8bit_overflow(final int value, final int adder) {
+        final int lowerNibble = value & 0xF;
+        final int halfResult = lowerNibble + adder;
 
-    // TODO: how are we handling when result goes under 0?
-    private void zFlagHFlag_8bit_borrow(final int value) {
-        if (value == 0) {
-            setZFlag(true);
-        } else if (value <= 0xF) {
-            setHFlag(true); // set if borrow from bit 4
-        }                   // although <= 0xF could be wrong, but from 10000 - 1 (binary) we do borrow 4th bit
-                            // == 1111 == 0xF
+        if (halfResult > 0xF) {
+            setHFlag(true);
+        } else {
+            setHFlag(false);
+        }
     }
 
     // this is only used by SP for now (which is 16 bits so doesn't make much sense and can't overflow?)
-    private void hFlagCFlag_8bit_overflow(final int value) {
-        if (value > 0xFF) {
+    private void cFlag_8bit_overflow(final int value, final int adder) {
+        final int lowerByte = value & 0xFF;
+        final int result = lowerByte + adder;
+        if (result > 0xFF) {
             setCFlag(true);
-        } else if (value > 0xF) {
-            setHFlag(true);
+        } else {
+            setCFlag(false);
         }
     }
 
-    private void hFlagCFlag_16bit_overflow(final String registers, final int value) {
-        if (value > 0xFFFF) {
-            setCFlag(true);
-            setr16(registers, 0); // reset since we reach unsigned 16bit limit
-        } else if (value > 0xFFF) {
+
+
+    // TODO: how are we handling when result goes under 0?
+    private void zFlag_8bit_borrow(final int result) {
+        if (result == 0) {
+            setZFlag(true);
+        }  else {
+            setZFlag(false);
+        }
+    }
+
+    private void hFlag_8bit_borrow(final int value, final int subtractor) {
+        final int valueLowerNibble = value & 0xF;
+        final int subtractorLowerNibble = subtractor & 0xF;
+        // when subtractorNib is bigger, we have to borrow from bit5!
+        if (subtractorLowerNibble > valueLowerNibble) {
             setHFlag(true);
+        } else {
+            setHFlag(false);
+        }
+    }
+
+    private void cFlag_8bit_borrow(final int value, final int subtractor) {
+        final int lowerByte = value & 0xFF; // ensure we only deal with first 8 bits
+        if (subtractor > lowerByte) {
+            setCFlag(true);
+        } else {
+            setCFlag(false);
+        }
+    }
+
+      private boolean cFlag_16bit_overflow(final int value, final int adder) {
+        final int result = value + adder;
+        if (result > 0xFFFF) {
+            setCFlag(true);
+            return true;
+        } else {
+            setCFlag(false);
+            return false;
+        }
+    }
+
+    private void hFlag_16bit_overflow(final int value, final int adder) {
+        final int first12bits = value & 0xFFF;
+        final int result = first12bits + adder;
+        if (result > 0xFFF) {
+            setHFlag(true);
+        } else {
+            setHFlag(false);
         }
     }
 
@@ -1747,6 +1924,30 @@ public class CPU {
             setCFlag(true);
         } else {
             setCFlag(false);
+        }
+    }
+
+    /**
+     * Checks wether 8bit result has overflown or not. Will wrap the result accordingly if so.
+     */
+    private int checkAndSetOverflowVal8bit(final int result) {
+        if (result > 0xFF) {
+            return result - 0xFF;
+        } else {
+            return result;
+        }
+    }
+
+    /**
+     * Checks whether 8bit result has underflown or not. Will wrap the result accordingly if so.
+     * @param result initial result
+     * @return corrected result
+     */
+    private int checkAndSetUnderflowVal8bit(final int result) {
+        if (result < 0) {
+            return result + 0xFF;
+        } else {
+            return result;
         }
     }
 

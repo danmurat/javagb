@@ -57,3 +57,11 @@ Sat 19th Apr:
 Sun 20th Apr:
 - figure out what the interrupts do [DONE]
 - implement the interrupt instructions (halt, di, ei, + reti) [DONE]
+
+
+Tue 10th Jun:
+- fixed JR instruction (should work as intended, but not 100% sure).
+
+Wed 11th Jun:
+- check out HALT issue from thoughts.txt (been unable to find what the issue was so far..)
+- handle all the overflow/underflow and flag issues [in progress]
