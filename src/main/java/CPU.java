@@ -626,11 +626,19 @@ public class CPU {
             case "DE" -> memory.writeByte(DE, regAValue);
             case "HL+" -> {
                 memory.writeByte(HL, regAValue);
-                HL++;
+                int value = HL + 1;
+                if (value > 0xFFFF) { // overflow wrap around
+                    value = value - 0x1000;
+                }
+                HL = value; // docs say no flags affected
             }
             case "HL-" -> {
                 memory.writeByte(HL, regAValue);
-                HL--;
+                int value = HL - 1;
+                if (value < 0) { // underflow wrap
+                    value = value + 0x10000;
+                }
+                HL = value;
             }
             default -> throw new RuntimeException("invalid register: " + registers + " for LD pr16,a");
         }
@@ -708,7 +716,7 @@ public class CPU {
         hFlag_8bit_overflow(value, incrementValue);
         // handle overflow (wrap around)
         result = (short) checkAndSetOverflowVal8bit(result);
-        zFlag_8bit_overflow(result); // must be done after result is checked for overflow (applied in below methods too)
+        zFlag_8bit_overflow_or_borrow(result); // must be done after result is checked for overflow (applied in below methods too)
 
         setr8(register, result);
 
@@ -724,7 +732,7 @@ public class CPU {
         hFlag_8bit_borrow(value, decValue);
         // handle underflow (wrap around)
         result = (short) checkAndSetUnderflowVal8bit(result);
-        zFlag_8bit_borrow(result);
+        zFlag_8bit_overflow_or_borrow(result);
 
         setr8(register, result);
 
@@ -740,7 +748,7 @@ public class CPU {
         hFlag_8bit_overflow(addressValue, incrementValue);
         // handle overflow
         result = (short) checkAndSetOverflowVal8bit(result);
-        zFlag_8bit_overflow(addressValue);
+        zFlag_8bit_overflow_or_borrow(addressValue);
 
         memory.writeByte(HL, result);
 
@@ -756,7 +764,7 @@ public class CPU {
         hFlag_8bit_borrow(addressValue, decValue);
         // handle underflow
         result = (short) checkAndSetUnderflowVal8bit(result);
-        zFlag_8bit_borrow(result);
+        zFlag_8bit_overflow_or_borrow(result);
 
         memory.writeByte(HL, result);
 
@@ -794,10 +802,10 @@ public class CPU {
 
         setNFlag(false);
         hFlag_8bit_overflow(aValue, r8Value);
-        cFlag_8bit_overflow(aValue, r8Value);
+        cFlag_8bit_overflow(result);
         // handle carry (above just set flags..)
         result = (short) checkAndSetOverflowVal8bit(result);
-        zFlag_8bit_overflow(result);
+        zFlag_8bit_overflow_or_borrow(result);
 
         setr8('A', result);
 
@@ -812,10 +820,10 @@ public class CPU {
 
         setNFlag(false);
         hFlag_8bit_overflow(aValue, addressValue);
-        cFlag_8bit_overflow(aValue, addressValue);
+        cFlag_8bit_overflow(result);
 
         result = (short) checkAndSetOverflowVal8bit(result);
-        zFlag_8bit_overflow(result);
+        zFlag_8bit_overflow_or_borrow(result);
 
         setr8('A', result);
 
@@ -830,10 +838,10 @@ public class CPU {
 
         setNFlag(false);
         hFlag_8bit_overflow(aValue, addressValue);
-        cFlag_8bit_overflow(aValue, addressValue);
+        cFlag_8bit_overflow(result);
 
         result = (short) checkAndSetOverflowVal8bit(result);
-        zFlag_8bit_overflow(result);
+        zFlag_8bit_overflow_or_borrow(result);
 
         setr8('A', result);
 
@@ -846,11 +854,13 @@ public class CPU {
         final short addressValue = memory.readByte(PC + 1);
         // two's compliment, like in JR Z instr
         final short signedVal = (short) memory.getTwosCompliment(addressValue);
-        SP += signedVal;
+        final int result = SP + signedVal;
+
+        SP = result;
 
         setZFlag(false);
         setNFlag(false);
-        cFlag_8bit_overflow(originalSPVal, signedVal);
+        cFlag_8bit_overflow(result);
         hFlag_8bit_overflow(originalSPVal, signedVal);
 
         totalMCycles += 4;
@@ -862,30 +872,34 @@ public class CPU {
         switch (registers) {
             case "BC" -> {
                 HL += BC;
-                hFlag_16bit_overflow(initialHLval, BC);
-                if (cFlag_16bit_overflow(initialHLval, BC)) {
+                if (cFlag_16bit_overflow(HL)) {
                     HL = HL - 0x10000;
+                } else { // otherwise check if there's a half carry
+                    hFlag_16bit_overflow(initialHLval, BC);
                 }
             }
             case "DE" -> {
                 HL += DE;
-                hFlag_16bit_overflow(initialHLval, DE);
-                if (cFlag_16bit_overflow(initialHLval, DE)) {
+                if (cFlag_16bit_overflow(HL)) {
                     HL = HL - 0x10000;
+                } else {
+                    hFlag_16bit_overflow(initialHLval, DE);
                 }
             }
             case "HL" -> {
                 HL += HL;
-                hFlag_16bit_overflow(initialHLval, initialHLval);
-                if (cFlag_16bit_overflow(initialHLval, initialHLval)) {
+                if (cFlag_16bit_overflow(HL)) {
                     HL = HL - 0x10000;
+                } else {
+                    hFlag_16bit_overflow(initialHLval, initialHLval);
                 }
             }
             case "SP" -> {
                 HL += SP;
-                hFlag_16bit_overflow(initialHLval, SP);
-                if (cFlag_16bit_overflow(initialHLval, SP)) {
+                if (cFlag_16bit_overflow(HL)) {
                     HL = HL - 0x10000;
+                } else {
+                    hFlag_16bit_overflow(initialHLval, SP);
                 }
             }
             default -> throw new RuntimeException("invalid register pair: " + registers + " for ADD HL,r16");
@@ -895,25 +909,23 @@ public class CPU {
         PC += 1;
     }
 
-    // ADC instructions
+    // ADC instructions (include carry flag addition, then just calls original add's to finish)
 
     private void adc_a_r8(final char register) {
-        // carry flag simply holds the extra bit that was carried over. e.g xFF + 1 goes to x00, and carry
-        // flag holds that extra bit. So when it's set, we need to add it back
-        setr8('A', getr8('A') + 1); // 1 is the carry bit
-        setCFlag(false);    // just used, so make it false
+        final int carryFlagValue = cFlagOn() ? 1 : 0;
+        setr8('A', getr8('A') + carryFlagValue);
         add_a_r8(register); // then do the remaining addition (which does flag checks again + cycle/pc increments)
     }
 
     private void adc_a_phl() {
-        setr8('A', getr8('A') + 1);
-        setCFlag(false);
+        final int carryFlagValue = cFlagOn() ? 1 : 0;
+        setr8('A', getr8('A') + carryFlagValue);
         add_a_phl();
     }
 
     private void adc_a_n8() {
-        setr8('A', getr8('A') + 1);
-        setCFlag(false);
+        final int carryFlagValue = cFlagOn() ? 1 : 0;
+        setr8('A', getr8('A') + carryFlagValue);
         add_a_n8();
     }
 
@@ -929,7 +941,7 @@ public class CPU {
         cFlag_8bit_borrow(aValue, r8Value);
 
         result = checkAndSetUnderflowVal8bit(result);
-        zFlag_8bit_borrow(result);
+        zFlag_8bit_overflow_or_borrow(result);
 
         setr8('A', result);
 
@@ -947,7 +959,7 @@ public class CPU {
         cFlag_8bit_borrow(aValue, addressValue);
 
         result = checkAndSetUnderflowVal8bit(result);
-        zFlag_8bit_borrow(result);
+        zFlag_8bit_overflow_or_borrow(result);
 
         setr8('A', result);
 
@@ -965,7 +977,7 @@ public class CPU {
         cFlag_8bit_borrow(aValue, addressValue);
 
         result = checkAndSetUnderflowVal8bit(result);
-        zFlag_8bit_borrow(result);
+        zFlag_8bit_overflow_or_borrow(result);
 
         setr8('A', result);
 
@@ -977,20 +989,20 @@ public class CPU {
     // SBC instructions
 
     private void sbc_a_r8(final char register) {
-        setr8('A', getr8('A') - 1); // carry flag use
-        setCFlag(false);
+        final int carryFlagValue = cFlagOn() ? 1 : 0;
+        setr8('A', getr8('A') - carryFlagValue); // carry flag use
         sub_a_r8(register);
     }
 
     private void sbc_a_phl() {
-        setr8('A', getr8('A') - 1); // carry flag use
-        setCFlag(false);
+        final int carryFlagValue = cFlagOn() ? 1 : 0;
+        setr8('A', getr8('A') - carryFlagValue); // carry flag use
         sub_a_phl();
     }
 
     private void sbc_a_n8() {
-        setr8('A', getr8('A') - 1); // carry flag use
-        setCFlag(false);
+        final int carryFlagValue = cFlagOn() ? 1 : 0;
+        setr8('A', getr8('A') - carryFlagValue); // carry flag use
         sub_a_n8();
     }
 
@@ -1127,7 +1139,7 @@ public class CPU {
         final short r8Value = (short) getr8(register);
         final int result = aValue - r8Value;
 
-        zFlag_8bit_borrow(result);
+        zFlag_8bit_overflow_or_borrow(result);
         setNFlag(true);
         hFlag_8bit_borrow(aValue, r8Value);
         if (r8Value > aValue) {
@@ -1143,7 +1155,7 @@ public class CPU {
         final short addressValue = memory.readByte(HL);
         final int result = aValue - addressValue;
 
-        zFlag_8bit_borrow(result);
+        zFlag_8bit_overflow_or_borrow(result);
         setNFlag(true);
         hFlag_8bit_borrow(aValue, addressValue);
         if (addressValue > aValue) {
@@ -1159,12 +1171,10 @@ public class CPU {
         final short addressValue = memory.readByte(PC + 1);
         final int result = aValue - addressValue;
 
-        zFlag_8bit_borrow(result);
+        zFlag_8bit_overflow_or_borrow(result);
         setNFlag(true);
         hFlag_8bit_borrow(aValue, addressValue);
-        if (addressValue > aValue) {
-            setCFlag(true);
-        }
+        setCFlag(addressValue > aValue);
 
         totalMCycles += 2;
         PC += 2;
@@ -1208,6 +1218,7 @@ public class CPU {
     // tbh this can be kept in pop_r16...
     private void pop_af() {
         pop_r16('A', 'F');
+        setF(getF() & 0b11110000); // throw away lower meaningless values (we only care about flags held in upper nibble)
     }
 
     // JP instructions (jump)
@@ -1575,20 +1586,25 @@ public class CPU {
             if (hFlagOn()) adjustment += 0x6;
             if (cFlagOn()) adjustment += 0x60;
             final int aRegValue = getr8('A');
-            final int newAValue = aRegValue - adjustment;
+            int newAValue = aRegValue - adjustment;
+            //cFlag_8bit_borrow(aRegValue, adjustment); commenting this out too because of overflow thing below
+            if (newAValue < 0) setCFlag(true);
+            newAValue = checkAndSetUnderflowVal8bit(newAValue);
             setr8('A', newAValue);
         } else {
             final int aRegValue = getr8('A');
             if (hFlagOn() || (aRegValue & 0xF) > 0x9) adjustment += 0x6;
             if (cFlagOn() || aRegValue > 0x99) {
                 adjustment += 0x60;
-                setCFlag(true);
             }
-            final int newAValue = aRegValue + adjustment;
+            int newAValue = aRegValue + adjustment;
+            //cFlag_8bit_overflow(newAValue); TEST IS EXPECTING CFLAG TO STILL BE ON??? commenting out for now
+            if (newAValue > 0xFF) setCFlag(true); // it might only want us to set to true when found (and not false when not)
+            newAValue = checkAndSetOverflowVal8bit(newAValue);
             setr8('A', newAValue);
         }
 
-        if (getr8('A') == 0) setZFlag(true);
+        setZFlag(getr8('A') == 0);
         setHFlag(false);
         // c flag should already be set in elif
 
@@ -1618,8 +1634,7 @@ public class CPU {
      */
     private void prefixedInstructionCall() {
         // need to access next byte (first was xCB)
-        PC += 1;
-        final short opcode = memory.readByte(PC);
+        final short opcode = memory.readByte(PC + 1);
 
         switch (opcode) {
             case 0x00 -> rlc_r8('B');
@@ -1894,7 +1909,7 @@ public class CPU {
             case 0xFE -> set_u3_phl(7);
             case 0xFF -> set_u3_r8(7, 'A');
 
-            default -> throw new RuntimeException("invalid opcode: " + opcode);
+            default -> throw new RuntimeException("invalid prefixed opcode: " + opcode);
         }
     }
 
@@ -2475,69 +2490,37 @@ public class CPU {
 
     // Flag set cases
 
-    private void zFlag_8bit_overflow(final int result) {
-        if (result == 0) {
-            setZFlag(true);
-        } else {
-            setZFlag(false);
-        }
+    private void zFlag_8bit_overflow_or_borrow(final int result) {
+        setZFlag(result == 0);
     }
 
     private void hFlag_8bit_overflow(final int value, final int adder) {
-        final int lowerNibble = value & 0xF;
-        final int halfResult = lowerNibble + adder;
-
-        if (halfResult > 0xF) {
-            setHFlag(true);
-        } else {
-            setHFlag(false);
-        }
+        final int valueLowerNibble = value & 0xF;
+        final int adderLowerNibble = adder & 0xF;
+        final int halfResult = valueLowerNibble + adderLowerNibble;
+        setHFlag(halfResult > 0xF);
     }
 
     // this is only used by SP for now (which is 16 bits so doesn't make much sense and can't overflow?)
-    private void cFlag_8bit_overflow(final int value, final int adder) {
-        final int lowerByte = value & 0xFF;
-        final int result = lowerByte + adder;
-        if (result > 0xFF) {
-            setCFlag(true);
-        } else {
-            setCFlag(false);
-        }
+    private void cFlag_8bit_overflow(final int result) {
+        setCFlag(result > 0xFF);
     }
 
-
-
-    // TODO: how are we handling when result goes under 0?
-    private void zFlag_8bit_borrow(final int result) {
-        if (result == 0) {
-            setZFlag(true);
-        }  else {
-            setZFlag(false);
-        }
-    }
 
     private void hFlag_8bit_borrow(final int value, final int subtractor) {
         final int valueLowerNibble = value & 0xF;
         final int subtractorLowerNibble = subtractor & 0xF;
         // when subtractorNib is bigger, we have to borrow from bit5!
-        if (subtractorLowerNibble > valueLowerNibble) {
-            setHFlag(true);
-        } else {
-            setHFlag(false);
-        }
+
+        setHFlag(subtractorLowerNibble > valueLowerNibble);
     }
 
     private void cFlag_8bit_borrow(final int value, final int subtractor) {
         final int lowerByte = value & 0xFF; // ensure we only deal with first 8 bits
-        if (subtractor > lowerByte) {
-            setCFlag(true);
-        } else {
-            setCFlag(false);
-        }
+        setCFlag(subtractor > lowerByte);
     }
 
-      private boolean cFlag_16bit_overflow(final int value, final int adder) {
-        final int result = value + adder;
+      private boolean cFlag_16bit_overflow(final int result) {
         if (result > 0xFFFF) {
             setCFlag(true);
             return true;
@@ -2548,29 +2531,33 @@ public class CPU {
     }
 
     private void hFlag_16bit_overflow(final int value, final int adder) {
-        final int first12bits = value & 0xFFF;
-        final int result = first12bits + adder;
-        if (result > 0xFFF) {
-            setHFlag(true);
-        } else {
-            setHFlag(false);
-        }
+        /*
+        We need to treat this as calculating the carry from the 2 bytes.
+        We calc the first byte, see if there's a half carry.
+        If there is, we add this to the next addition of the upper byte
+        We see if there is a half carry here. If so, we set H to true
+         */
+        final int valueNibble1 = value & 0xF;
+        final int adderNibble1 = adder & 0xF;
+        final int halfResult1 = valueNibble1 + adderNibble1;
+        final int firstHalfCarryVal = halfResult1 > 0xF ? 1 : 0;
+
+        final int valueNibble3 = (value >> 8) & 0xF;
+        final int adderNibble3 = (adder >> 8) & 0xF;
+        final int halfResult3 = valueNibble3 + adderNibble3 + firstHalfCarryVal;
+        setHFlag(halfResult3 > 0xF);
     }
 
 
     private void andFlagSets(final int result) {
-        if (result == 0) setZFlag(true);
+        setZFlag(result == 0);
         setNFlag(false);
         setHFlag(true);
         setCFlag(false);
     }
 
     private void xorFlagSets(final int result) {
-        if (result == 0) {
-            setZFlag(true);
-        } else {
-            setZFlag(false);
-        }
+        setZFlag(result == 0);
         setNFlag(false);
         setHFlag(false);
         setCFlag(false);
@@ -2580,24 +2567,12 @@ public class CPU {
         setZFlag(false);
         setNFlag(false);
         setHFlag(false);
-        if (cFlagResult == 1) {
-            setCFlag(true);
-        } else {
-            setCFlag(false);
-        }
+        setCFlag(cFlagResult == 1);
     }
 
     private void rotationFlagSets(final int cFlagResult, final int result) {
-        if (result == 0) {
-            setZFlag(true);
-        } else {
-            setZFlag(false);
-        }
-        if (cFlagResult == 1) {
-            setCFlag(true);
-        } else {
-            setCFlag(false);
-        }
+        setZFlag(result == 0);
+        setCFlag(cFlagResult == 1);
         setNFlag(false); // these must be set to false for rrc/rlc's
         setHFlag(false);
     }
@@ -2680,18 +2655,18 @@ public class CPU {
     private int rotateLeftThroughC(final int value) {
         final int cFlagValue = cFlagOn() ? 1 : 0;
 
-        final int combine = cFlagValue << 9 | value; // bit 9 = cFlag
+        final int combine = cFlagValue << 8 | value; // bit 9 = cFlag
         final int leftRotateResult = combine << 1; // keep 10 bits this time (to wrap c back around)
 
         // keep last bit (10th since we shifted left 1) and shifts back to 1st bit placement
-        final int overflowBit = (leftRotateResult & 0b1000000000) >> 9;
+        //final int overflowBit = (leftRotateResult & 0b1000000000) >> 9;
         // places overflow bit to the first bit of val and keeps 9 bits (carry at 9)
         int leftRotatedValue;
-        if (overflowBit == 1) {
-            leftRotatedValue = (leftRotateResult | overflowBit) & 0b111111111;
+        if (cFlagValue == 1) {
+            leftRotatedValue = (leftRotateResult | cFlagValue) & 0b111111111; // keep 9 bits
         } else {
-            final int overflowBit0Value = 0b111111110; // bit 1 = 0, rest are 1 so we can AND the value
-            leftRotatedValue = (leftRotateResult & overflowBit0Value) & 0b111111111;
+            // leftmost ends up 0 anyway, so just trim out the 10th bit
+            leftRotatedValue = leftRotateResult & 0b111111111;
         }
 
         return leftRotatedValue;
@@ -2700,18 +2675,16 @@ public class CPU {
     private int rotateRightThroughC(final int value) {
         final int cFlagValue = cFlagOn() ? 1 : 0;
 
-        // we'll need to make this 10 bits long, and consider bit 0 as the underflow bit (to move to bit 9)
-        final int combine = (value << 2) | (cFlagValue << 1); // bit 0 = 0, bit 1 = cFlag
+        final int combine = (value << 1) | cFlagValue;
         final int rightRotateResult = combine >> 1;
 
-        final int underflowBit = rightRotateResult & 0b000000001; // keep 1st bit (bit 0) to wrap around
-
+        // then wrap the orginal cFlag value around
         int rightRotatedValue;
-        if (underflowBit == 1) { // if on, we can OR to apply it
-            rightRotatedValue = (underflowBit << 8) | (rightRotateResult >> 2);
-        } else { // if off, we need to AND
-            // put 1's to the rest of the 9bit underflow so we don't change the other values
-            rightRotatedValue = (0b011111111) & (rightRotateResult >> 1);
+        if (cFlagValue == 1) { // if on, we can OR to apply it
+            rightRotatedValue = (cFlagValue << 8) | rightRotateResult;
+        } else {
+            // if off, 9th bit will be zero anyway, so no need to do anything
+            rightRotatedValue = rightRotateResult;
         }
 
         return rightRotatedValue;

@@ -10,7 +10,7 @@ public class Run {
         System.out.println("Welcom to Java gb");
 
         // -- SET UP
-        Memory memory = new Memory("individual/02-interrupts.gb");
+        Memory memory = new Memory("individual/01-special.gb");
         CPU cpu = new CPU(memory);
         memory.setCPU(cpu);
         //memory.hexDumpRomContents();
@@ -35,7 +35,7 @@ public class Run {
          */
         int executionAmount = 0;
 
-        //while (executionAmount < 17467) {
+        //while (executionAmount < 1300000) {
         while (true) {
             //System.out.print(executionAmount + ": ");
             //cpu.printPC();
@@ -46,10 +46,10 @@ public class Run {
             //System.out.println(" Instruction=" + getInstructionName(cpu.getOP()));
 
             // text output port (for the cpu test results)
-           /* if (memory.readByte(0xFF02) == 0x81) {
-                System.out.println((char) memory.readByte(0xFF01));
+            if (memory.readByte(0xFF02) == 0x81) {
+                System.out.print((char) memory.readByte(0xFF01));
                 memory.writeByte(0xFF02, (short) 0x00);
-            }*/
+            }
 
             executionAmount++;
         }

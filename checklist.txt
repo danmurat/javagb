@@ -103,4 +103,12 @@ They take up 4 rows each, but each instruction just has different params, so sho
 
 - implement BIT instructions [DONE]
 - implement RES instructions [DONE]
-- implement SET instructions [in progress]
+- implement SET instructions [DONE]
+
+
+ALL INSTRUCTIONS IMPLEMENTED
+Now we need to test
+
+For tomorrow:
+    Figure out what's wrong with our DAA instruction. We keep failing tests on there and the setting of the C flags
+    seems to be the issue (i'm not sure why).
