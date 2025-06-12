@@ -94,3 +94,11 @@ All instructions seem correct up till when we get to the prefixed "xCB" set. We'
 - SLA/SRA (shift left/right arithmetic instructions) [DONE]
 - SWAP instructions [DONE]
 - SRL instructions [DONE]
+
+There are 3 main instructions left for the whole 256 prefix opcode set:
+1. BIT
+2. RES
+3. SET
+They take up 4 rows each, but each instruction just has different params, so shouldn't be too time consuming to implement
+
+- implement BIT instructions [in progress]

@@ -1690,6 +1690,76 @@ public class CPU {
             case 0x3E -> srl_phl();
             case 0x3F -> srl_r8('A');
 
+            case 0x40 -> bit_u3_r8(0, 'B');
+            case 0x41 -> bit_u3_r8(0, 'C');
+            case 0x42 -> bit_u3_r8(0, 'D');
+            case 0x43 -> bit_u3_r8(0, 'E');
+            case 0x44 -> bit_u3_r8(0, 'H');
+            case 0x45 -> bit_u3_r8(0, 'L');
+            case 0x46 -> bit_u3_phl(0);
+            case 0x47 -> bit_u3_r8(0, 'A');
+            case 0x48 -> bit_u3_r8(1, 'B');
+            case 0x49 -> bit_u3_r8(1, 'C');
+            case 0x4A -> bit_u3_r8(1, 'D');
+            case 0x4B -> bit_u3_r8(1, 'E');
+            case 0x4C -> bit_u3_r8(1, 'H');
+            case 0x4D -> bit_u3_r8(1, 'L');
+            case 0x4E -> bit_u3_phl(1);
+            case 0x4F -> bit_u3_r8(1, 'A');
+
+            case 0x50 -> bit_u3_r8(2, 'B');
+            case 0x51 -> bit_u3_r8(2, 'C');
+            case 0x52 -> bit_u3_r8(2, 'D');
+            case 0x53 -> bit_u3_r8(2, 'E');
+            case 0x54 -> bit_u3_r8(2, 'H');
+            case 0x55 -> bit_u3_r8(2, 'L');
+            case 0x56 -> bit_u3_phl(2);
+            case 0x57 -> bit_u3_r8(2, 'A');
+            case 0x58 -> bit_u3_r8(3, 'B');
+            case 0x59 -> bit_u3_r8(3, 'C');
+            case 0x5A -> bit_u3_r8(3, 'D');
+            case 0x5B -> bit_u3_r8(3, 'E');
+            case 0x5C -> bit_u3_r8(3, 'H');
+            case 0x5D -> bit_u3_r8(3, 'L');
+            case 0x5E -> bit_u3_phl(3);
+            case 0x5F -> bit_u3_r8(3, 'A');
+
+            case 0x60 -> bit_u3_r8(4, 'B');
+            case 0x61 -> bit_u3_r8(4, 'C');
+            case 0x62 -> bit_u3_r8(4, 'D');
+            case 0x63 -> bit_u3_r8(4, 'E');
+            case 0x64 -> bit_u3_r8(4, 'H');
+            case 0x65 -> bit_u3_r8(4, 'L');
+            case 0x66 -> bit_u3_phl(4);
+            case 0x67 -> bit_u3_r8(4, 'A');
+            case 0x68 -> bit_u3_r8(5, 'B');
+            case 0x69 -> bit_u3_r8(5, 'C');
+            case 0x6A -> bit_u3_r8(5, 'D');
+            case 0x6B -> bit_u3_r8(5, 'E');
+            case 0x6C -> bit_u3_r8(5, 'H');
+            case 0x6D -> bit_u3_r8(5, 'L');
+            case 0x6E -> bit_u3_phl(5);
+            case 0x6F -> bit_u3_r8(5, 'A');
+
+            case 0x70 -> bit_u3_r8(6, 'B');
+            case 0x71 -> bit_u3_r8(6, 'C');
+            case 0x72 -> bit_u3_r8(6, 'D');
+            case 0x73 -> bit_u3_r8(6, 'E');
+            case 0x74 -> bit_u3_r8(6, 'H');
+            case 0x75 -> bit_u3_r8(6, 'L');
+            case 0x76 -> bit_u3_phl(6);
+            case 0x77 -> bit_u3_r8(6, 'A');
+            case 0x78 -> bit_u3_r8(7, 'B');
+            case 0x79 -> bit_u3_r8(7, 'C');
+            case 0x7A -> bit_u3_r8(7, 'D');
+            case 0x7B -> bit_u3_r8(7, 'E');
+            case 0x7C -> bit_u3_r8(7, 'H');
+            case 0x7D -> bit_u3_r8(7, 'L');
+            case 0x7E -> bit_u3_phl(7);
+            case 0x7F -> bit_u3_r8(7, 'A');
+
+
+
             default -> throw new RuntimeException("invalid opcode: " + opcode);
         }
     }
@@ -1955,6 +2025,46 @@ public class CPU {
         totalMCycles += 4;
         PC += 2;
     }
+
+    // BIT instrs
+
+    // tests the bitIndex (0-7) to see if on or off to set Z flag accordingly
+    private void bit_u3_r8(final int bitIndex, final char register) {
+        final int regValue = getr8(register);
+        switch (bitIndex) {
+            case 0 -> handleBitTest(regValue & 0x01);
+            case 1 -> handleBitTest((regValue >> 1) & 0x01);
+            case 2 -> handleBitTest((regValue >> 2) & 0x01);
+            case 3 -> handleBitTest((regValue >> 3) & 0x01);
+            case 4 -> handleBitTest((regValue >> 4) & 0x01);
+            case 5 -> handleBitTest((regValue >> 5) & 0x01);
+            case 6 -> handleBitTest((regValue >> 6) & 0x01);
+            case 7 -> handleBitTest((regValue >> 7) & 0x01);
+            default -> throw new RuntimeException("invalid bitIndex: " + bitIndex);
+        }
+
+        totalMCycles += 2;
+        PC += 2;
+    }
+
+    private void bit_u3_phl(final int bitIndex) {
+        final int hlByteValue = memory.readByte(HL);
+        switch (bitIndex) {
+            case 0 -> handleBitTest(hlByteValue & 0x01);
+            case 1 -> handleBitTest((hlByteValue >> 1) & 0x01);
+            case 2 -> handleBitTest((hlByteValue >> 2) & 0x01);
+            case 3 -> handleBitTest((hlByteValue >> 3) & 0x01);
+            case 4 -> handleBitTest((hlByteValue >> 4) & 0x01);
+            case 5 -> handleBitTest((hlByteValue >> 5) & 0x01);
+            case 6 -> handleBitTest((hlByteValue >> 6) & 0x01);
+            case 7 -> handleBitTest((hlByteValue >> 7) & 0x01);
+            default -> throw new RuntimeException("invalid bitIndex: " + bitIndex);
+        }
+
+        totalMCycles += 3;
+        PC += 2;
+    }
+
 
 
 
@@ -2379,6 +2489,17 @@ public class CPU {
         final int upperNibble = value >> 4;
 
         return (lowerNibble << 4) | upperNibble;
+    }
+
+
+    /**
+     * Set's the flags accordingly for BIT instructions
+     * @param value the bit index we're testing
+     */
+    private void handleBitTest(final int value) {
+        setZFlag(value == 0); // value == 0 will set true/false automatically
+        setNFlag(false);
+        setHFlag(true);
     }
 
 }
