@@ -1673,6 +1673,23 @@ public class CPU {
             case 0x2E -> sra_phl();
             case 0x2F -> sra_r8('A');
 
+            case 0x30 -> swap_r8('B');
+            case 0x31 -> swap_r8('C');
+            case 0x32 -> swap_r8('D');
+            case 0x33 -> swap_r8('E');
+            case 0x34 -> swap_r8('H');
+            case 0x35 -> swap_r8('L');
+            case 0x36 -> swap_phl();
+            case 0x37 -> swap_r8('A');
+            case 0x38 -> srl_r8('B');
+            case 0x39 -> srl_r8('C');
+            case 0x3A -> srl_r8('D');
+            case 0x3B -> srl_r8('E');
+            case 0x3C -> srl_r8('H');
+            case 0x3D -> srl_r8('L');
+            case 0x3E -> srl_phl();
+            case 0x3F -> srl_r8('A');
+
             default -> throw new RuntimeException("invalid opcode: " + opcode);
         }
     }
@@ -1884,6 +1901,61 @@ public class CPU {
         totalMCycles += 4;
         PC += 2;
     }
+
+    // SWAP instrs (just swaps upper 4 with lower 4 bits)
+
+    private void swap_r8(char register) {
+        final int regValue = getr8(register);
+        final int swappedValue = swapUpperLowerNibble(regValue);
+
+        setr8(register, swappedValue);
+        xorFlagSets(swappedValue); // uses the same flag settings as xor, so we just use this method
+
+        totalMCycles += 2;
+        PC += 2;
+    }
+
+    private void swap_phl() {
+        final int hlByteValue = memory.readByte(HL);
+        final int swappedValue = swapUpperLowerNibble(hlByteValue);
+
+        memory.writeByte(HL, (short) swappedValue);
+        xorFlagSets(swappedValue); // uses the same flag settings as xor, so we just use this method
+
+        totalMCycles += 4;
+        PC += 2;
+    }
+
+    // SRL instructions (shift right logically) doesn't preserve sign
+
+    private void srl_r8(char register) {
+        final int regValue = getr8(register);
+        final int rightShiftValue = shiftRight(regValue);
+
+        final int cFlagValue = rightShiftValue & 0x01;
+        final int newRegValue = rightShiftValue >> 1;
+
+        setr8(register, newRegValue);
+        rotationFlagSets(cFlagValue, newRegValue);
+
+        totalMCycles += 2;
+        PC += 2;
+    }
+
+    private void srl_phl() {
+        final int hlByteValue = memory.readByte(HL);
+        final int rightShiftValue = shiftRight(hlByteValue);
+
+        final int cFlagValue = rightShiftValue & 0x01;
+        final int newHlByteValue = rightShiftValue >> 1;
+
+        memory.writeByte(HL, (short) newHlByteValue);
+        rotationFlagSets(cFlagValue, newHlByteValue);
+
+        totalMCycles += 4;
+        PC += 2;
+    }
+
 
 
     // ------ HELPER METHODS --------
@@ -2194,39 +2266,56 @@ public class CPU {
     /**
      * 8bit Rotate right mechanism. For avoiding repeated calls in rotate instructions.
      * It places C flag value on the left and shifts everything left.
+     * These return 9bits which include the CFlag value for other methods to extract
      * @param value the value to rotate
      * @return rotated value
      */
     private int rotateLeft(final int value) {
-        int cFlagValue = 0;
-        if (cFlagOn()) cFlagValue = 1;
+        final int cFlagValue = cFlagOn() ? 1 : 0;
 
         // combine in correct bit places
         final int combine = (cFlagValue << 9) | value;
         final int leftRotateResult = (combine << 1) & 0b111111111; // & ensures we only keep the 9 bits (we don't want 10)
 
-        return leftRotateResult;
+        final int cFlagResult = leftRotateResult >> 8;
+        int leftRotateValue;
+        if (cFlagResult == 1) {
+            leftRotateValue = leftRotateResult | cFlagResult;
+        } else {
+            leftRotateValue = leftRotateResult; // right-most bit will be 0 anyway
+        }
+
+        return leftRotateValue;
     }
 
     /**
      * 8bit Rotate right mechanism. For avoiding repeated calls in rotate instructions.
      * Places C flag value on right and shifts everything right.
+     * These return 9bits which include the CFlag value for other methods to extract
      * @param value the value to rotate
      * @return rotated value
      */
     private int rotateRight(final int value) {
-        int cFlagValue = 0;
-        if (cFlagOn()) cFlagValue = 1;
+        final int cFlagValue = cFlagOn() ? 1 : 0;
 
         final int combine = (value << 1) | cFlagValue;
         final int rightRotateResult = (combine >> 1) & 0b111111111; // 9bits only
 
-        return rightRotateResult;
+        final int cFlagResult = rightRotateResult & 0x01; // bit 1
+        // we wrap cFlagResult around (cFlag basically just get's a copy of this)
+        int rightRotateValue;
+        if (cFlagResult == 1) {
+            rightRotateValue = rightRotateResult | (cFlagResult << 8);
+        } else {
+            final int cFlag9bitValue = 0b011111111;
+            rightRotateValue = rightRotateResult & cFlag9bitValue;
+        }
+
+        return rightRotateValue;
     }
 
     private int rotateLeftThroughC(final int value) {
-        int cFlagValue = 0;
-        if (cFlagOn()) cFlagValue = 1;
+        final int cFlagValue = cFlagOn() ? 1 : 0;
 
         final int combine = cFlagValue << 9 | value; // bit 9 = cFlag
         final int leftRotateResult = combine << 1; // keep 10 bits this time (to wrap c back around)
@@ -2234,14 +2323,19 @@ public class CPU {
         // keep last bit (10th since we shifted left 1) and shifts back to 1st bit placement
         final int overflowBit = (leftRotateResult & 0b1000000000) >> 9;
         // places overflow bit to the first bit of val and keeps 9 bits (carry at 9)
-        final int leftRotatedValue = (leftRotateResult | overflowBit) & 0b111111111;
+        int leftRotatedValue;
+        if (overflowBit == 1) {
+            leftRotatedValue = (leftRotateResult | overflowBit) & 0b111111111;
+        } else {
+            final int overflowBit0Value = 0b111111110; // bit 1 = 0, rest are 1 so we can AND the value
+            leftRotatedValue = (leftRotateResult & overflowBit0Value) & 0b111111111;
+        }
 
         return leftRotatedValue;
     }
 
     private int rotateRightThroughC(final int value) {
-        int cFlagValue = 0;
-        if (cFlagOn()) cFlagValue = 1;
+        final int cFlagValue = cFlagOn() ? 1 : 0;
 
         // we'll need to make this 10 bits long, and consider bit 0 as the underflow bit (to move to bit 9)
         final int combine = (value << 2) | (cFlagValue << 1); // bit 0 = 0, bit 1 = cFlag
@@ -2258,6 +2352,33 @@ public class CPU {
         }
 
         return rightRotatedValue;
+    }
+
+    // we don't wrap values around in shifts (like in rotates)
+    // left not needed for now, but keep incase
+    private int shiftLeft(final int value) {
+        final int cFlagValue = cFlagOn() ? 1 : 0;
+        final int combine = (cFlagValue << 8) | value;
+
+        return (combine << 1) & 0b111111111;
+    }
+
+    private int shiftRight(final int value) {
+        final int cFlagValue = cFlagOn() ? 1 : 0;
+        final int combine = (value << 1) | cFlagValue;
+        return (combine >> 1) & 0b111111111;
+    }
+
+
+    /**
+     * Helper method for swapping upper nibble with lower nibble.
+     * To be used for SWAP instructions.
+     */
+    private int swapUpperLowerNibble(final int value) {
+        final int lowerNibble = value & 0xF;
+        final int upperNibble = value >> 4;
+
+        return (lowerNibble << 4) | upperNibble;
     }
 
 }
