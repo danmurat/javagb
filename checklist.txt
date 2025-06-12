@@ -87,3 +87,8 @@ Wed 11th Jun:
 Tomorrow we'll work on some other instruction tests to make sure they're working fully.
 We'll do this for all instructions we've done so far till we feel confident that they are working properly.
 After this we get the 256 prefix instructions implemented also.
+
+June 12th:
+All instructions seem correct up till when we get to the prefixed "xCB" set. We'll start implementing this now.
+- rotate instructions [DONE]
+- SLA/SRA (shift left/right arithmetic instructions) [DONE]

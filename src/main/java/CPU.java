@@ -425,19 +425,7 @@ public class CPU {
         }
     }
 
-    /**
-     * Run different set of instructions when opcode is prefixed with xCB
-     */
-    private void prefixedInstructionCall() {
-        // need to access next byte (first was xCB)
-        PC += 1;
-        final short opcode = memory.readByte(PC);
 
-        switch (opcode) {
-            case 0x00 -> System.out.println("implement the prefixed opcodes!");
-            default -> throw new RuntimeException("invalid opcode: " + opcode);
-        }
-    }
 
 
     // TODO: shorten this!! lot of repeats
@@ -1217,20 +1205,9 @@ public class CPU {
         PC += 1;
     }
 
-    // since AF become new values,we need to remember and place the flags back to the new value
+    // tbh this can be kept in pop_r16...
     private void pop_af() {
-        // first save flags before popping
-        final boolean zFlagOn = zFlagOn();
-        final boolean nFlagOn = nFlagOn();
-        final boolean hFlagOn = hFlagOn();
-        final boolean cFlagOn = cFlagOn();
-
         pop_r16('A', 'F');
-
-        if (zFlagOn) setZFlag(true);
-        if (nFlagOn) setNFlag(true);
-        if (hFlagOn) setHFlag(true);
-        if (cFlagOn) setCFlag(true);
     }
 
     // JP instructions (jump)
@@ -1476,81 +1453,56 @@ public class CPU {
     // Rotation instructions
 
     private void rla() { // this is through the carry flag, so whatever is shifted out comes back
-        int cFlagValue = 0;
-        if (cFlagOn()) cFlagValue = 1;
+        final int aRegValue = getr8('A');
+        final int rotatedValue = rotateLeftThroughC(aRegValue);
 
-        final int carryAndAreg = cFlagValue << 9 | getr8('A'); // bit 9 = cFlag
-        final int leftRotateResult = carryAndAreg << 1;
+        final int cFlagValue = (rotatedValue & 0b100000000) >> 8; // 9th bit
+        final int newARegValue = rotatedValue & 0xFF; // first 8 bits
 
-        // keep last bit (10th since we shifted left 1) and shifts back to 1st bit placement
-        final int overflowBit = (leftRotateResult & 0b1000000000) >> 9;
-        cFlagValue = (leftRotateResult & 0b100000000) >> 8; // keep 9th
-
-        // places overflow bit to the first bit of A and keeps only 8 bits
-        final int aRegValue = (leftRotateResult | overflowBit) & 0xFF;
-
-        setr8('A', aRegValue);
-        rotationFlagSets(cFlagValue);
+        setr8('A', newARegValue);
+        rotationAFlagSets(cFlagValue);
 
         totalMCycles += 1;
         PC += 1;
     }
 
     private void rra() { // through carry
-        int cFlagValue = 0;
-        if (cFlagOn()) cFlagValue = 1;
+        final int aRegValue = getr8('A');
+        final int rotatedValue = rotateRightThroughC(aRegValue);
 
-        // we'll need to make this 10 bits long, and consider bit 0 as the underflow bit (to move to bit 9)
-        final int carryAndAreg = (getr8('A') << 2) | (cFlagValue << 1); // bit 0 = 0, bit 1 = cFlag
-        final int rightRotateResult = carryAndAreg >> 1;
+        final int cFlagValue = rotatedValue & 0x01; // first bit
+        final int newARegValue = rotatedValue >> 1;
 
-        final int underflowBit = rightRotateResult & 0b000000001; // keep 1st bit
-        cFlagValue = (rightRotateResult & 0b000000010) >> 1; // keep 2nd bit (bit shift back to 1st bit)
-
-        int aRegValue;
-        if (underflowBit == 1) { // if on, we can OR to apply it
-            aRegValue = (underflowBit << 8) | (rightRotateResult >> 2);
-        } else { // if off, we need to AND
-            // put 1's to the rest of the underflow byte so we don't change the other A register values
-            aRegValue = ((underflowBit << 8) | 0b01111111) | (rightRotateResult >> 2);
-        }
-
-        setr8('A', aRegValue);
-        rotationFlagSets(cFlagValue);
+        setr8('A', newARegValue);
+        rotationAFlagSets(cFlagValue);
 
         totalMCycles += 1;
         PC += 1;
     }
 
     private void rlca() { // rotate left (not through carry)
-        int cFlagValue = 0;
-        if (cFlagOn()) cFlagValue = 1;
+        final int aRegValue = getr8('A');
+        final int leftRotateResult = rotateLeft(aRegValue);
 
-        final int carryAndAreg = (cFlagValue << 9) | getr8('A'); // combine in correct bit places
-        final int leftRotateResult = (carryAndAreg << 1) & 0b111111111; // & ensures we only keep the 9 bits (we don't want 10)
+        final int cFlagValue = leftRotateResult >> 8; // keep 9th bit (the c flag value) as a single bit
+        final int newARegValue = leftRotateResult & 0xFF; // keep only first 8 bits
+        setr8('A', newARegValue);
 
-        cFlagValue = leftRotateResult >> 8; // keep 9th bit (the c flag value) as a single bit
-        final int aRegValue = leftRotateResult & 0b11111111; // keep only first 8 bits
-        setr8('A', aRegValue);
-
-        rotationFlagSets(cFlagValue);
+        rotationAFlagSets(cFlagValue);
 
         totalMCycles += 1;
         PC += 1;
     }
 
     private void rrca() { // rotate right
-        int cFlagValue = 0;
-        if (cFlagOn()) cFlagValue = 1;
+        final int aRegValue = getr8('A');
+        final int rightRotateResult = rotateRight(aRegValue);
 
-        final int carryAndAreg = (getr8('A') << 1) | cFlagValue;
-        final int rightRotateResult = (carryAndAreg >> 1) & 0b111111111;
+        final int cFlagValue = rightRotateResult & 0x01; // keep 1st bit
+        final int newARegValue = rightRotateResult >> 1; // removes the cValue so we just keep aReg
+        setr8('A', newARegValue);
 
-        cFlagValue = rightRotateResult & 0b000000001; // keep 1st bit
-        final int aRegValue = rightRotateResult >> 1; // removes the cValue so we just keep aReg
-        setr8('A', aRegValue);
-
-        rotationFlagSets(cFlagValue);
+        rotationAFlagSets(cFlagValue);
 
         totalMCycles += 1;
         PC += 1;
@@ -1658,6 +1610,280 @@ public class CPU {
           (STOP n8) to override the default of $00 (a NOP instruction).*/
     }
 
+    // --- CB PREFIXED INSTRUCTIONS ---
+
+    /**
+     * Run different set of instructions when opcode is prefixed with xCB.
+     * All of these are instructions for 8bit shift/rotate/bitwise..
+     */
+    private void prefixedInstructionCall() {
+        // need to access next byte (first was xCB)
+        PC += 1;
+        final short opcode = memory.readByte(PC);
+
+        switch (opcode) {
+            case 0x00 -> rlc_r8('B');
+            case 0x01 -> rlc_r8('C');
+            case 0x02 -> rlc_r8('D');
+            case 0x03 -> rlc_r8('E');
+            case 0x04 -> rlc_r8('H');
+            case 0x05 -> rlc_r8('L');
+            case 0x06 -> rlc_phl();
+            case 0x07 -> rlc_r8('A');
+            case 0x08 -> rrc_r8('B');
+            case 0x09 -> rrc_r8('C');
+            case 0x0A -> rrc_r8('D');
+            case 0x0B -> rrc_r8('E');
+            case 0x0C -> rrc_r8('H');
+            case 0x0D -> rrc_r8('L');
+            case 0x0E -> rrc_phl();
+            case 0x0F -> rrc_r8('A');
+
+            case 0x10 -> rl_r8('B');
+            case 0x11 -> rl_r8('C');
+            case 0x12 -> rl_r8('D');
+            case 0x13 -> rl_r8('E');
+            case 0x14 -> rl_r8('H');
+            case 0x15 -> rl_r8('L');
+            case 0x16 -> rl_phl();
+            case 0x17 -> rl_r8('A');
+            case 0x18 -> rr_r8('B');
+            case 0x19 -> rr_r8('C');
+            case 0x1A -> rr_r8('D');
+            case 0x1B -> rr_r8('E');
+            case 0x1C -> rr_r8('H');
+            case 0x1D -> rr_r8('L');
+            case 0x1E -> rr_phl();
+            case 0x1F -> rr_r8('A');
+
+            case 0x20 -> sla_r8('B');
+            case 0x21 -> sla_r8('C');
+            case 0x22 -> sla_r8('D');
+            case 0x23 -> sla_r8('E');
+            case 0x24 -> sla_r8('H');
+            case 0x25 -> sla_r8('L');
+            case 0x26 -> sla_phl();
+            case 0x27 -> sla_r8('A');
+            case 0x28 -> sra_r8('B');
+            case 0x29 -> sra_r8('C');
+            case 0x2A -> sra_r8('D');
+            case 0x2B -> sra_r8('E');
+            case 0x2C -> sra_r8('H');
+            case 0x2D -> sra_r8('L');
+            case 0x2E -> sra_phl();
+            case 0x2F -> sra_r8('A');
+
+            default -> throw new RuntimeException("invalid opcode: " + opcode);
+        }
+    }
+
+    // BELOW CONTAIN ALL IMPLEMENTATIONS FOR PREFIXED CALLS
+
+    // RLC/RRC
+
+    private void rlc_r8(char register) {
+        final int regValue = getr8(register);
+        final int leftRotateResult = rotateLeft(regValue);
+
+        final int cFlagValue = leftRotateResult >> 8; // keep 9th bit (the c flag value) as a single bit
+        final int newRegValue = leftRotateResult & 0xFF; // keep only first 8 bits
+        setr8(register, newRegValue);
+
+        rotationFlagSets(cFlagValue, newRegValue);
+
+        totalMCycles += 2;
+        PC += 2;
+    }
+
+    private void rlc_phl() {
+        final int hlByteValue = memory.readByte(HL);
+        final int leftRotateResult = rotateLeft(hlByteValue);
+
+        final int cFlagValue = leftRotateResult >> 8;
+        final int newHlByteValue = leftRotateResult & 0xFF;
+
+        memory.writeByte(HL, (short) newHlByteValue);
+        rotationFlagSets(cFlagValue, newHlByteValue);
+
+        totalMCycles += 4;
+        PC += 2;
+    }
+
+    private void rrc_r8(char register) {
+        final int regValue = getr8(register);
+        final int rightRotateResult = rotateRight(regValue);
+
+        final int cFlagValue = rightRotateResult & 0x01; // keep 1st bit
+        final int newRegValue = rightRotateResult >> 1; // removes the cValue so we just keep reg
+        setr8(register, newRegValue);
+
+        rotationFlagSets(cFlagValue, newRegValue);
+
+        totalMCycles += 2;
+        PC += 2;
+    }
+
+    private void rrc_phl() {
+        final int hlByteValue = memory.readByte(HL);
+        final int rightRotateResult = rotateRight(hlByteValue);
+
+        final int cFlagValue = rightRotateResult & 0x01; // keep 1st bit
+        final int newHlByteValue = rightRotateResult >> 1; // removes the cValue
+
+        memory.writeByte(HL, (short) newHlByteValue);
+        rotationFlagSets(cFlagValue, newHlByteValue);
+
+        totalMCycles += 4;
+        PC += 2;
+    }
+
+
+    // RL/RR (rotate through the carry flag)
+
+    private void rl_r8(char register) {
+        final int regValue = getr8(register);
+        final int rotatedValue = rotateLeftThroughC(regValue);
+
+        final int cFlagValue = rotatedValue >> 8; // 9th bit
+        final int newRegValue = rotatedValue & 0xFF; // first 8 bits
+
+        setr8(register, newRegValue);
+        rotationFlagSets(cFlagValue, newRegValue);
+
+        totalMCycles += 2;
+        PC += 2;
+    }
+
+    private void rl_phl() {
+        final int hlByteValue = memory.readByte(HL);
+        final int rotatedValue = rotateLeftThroughC(hlByteValue);
+
+        final int cFlagValue = rotatedValue >> 8;
+        final int newHlByteValue = rotatedValue & 0xFF;
+
+        memory.writeByte(HL, (short) newHlByteValue);
+        rotationFlagSets(cFlagValue, newHlByteValue);
+
+        totalMCycles += 4;
+        PC += 2;
+    }
+
+    private void rr_r8(char register) {
+        final int regValue = getr8(register);
+        final int rotatedValue = rotateRightThroughC(regValue);
+
+        final int cFlagValue = rotatedValue & 0x01; // first bit
+        final int newRegValue = rotatedValue >> 1;
+
+        setr8(register, newRegValue);
+        rotationFlagSets(cFlagValue, newRegValue);
+
+        totalMCycles += 2;
+        PC += 2;
+    }
+
+    private void rr_phl() {
+        final int hlByteValue = memory.readByte(HL);
+        final int rotatedValue = rotateRightThroughC(hlByteValue);
+
+        final int cFlagValue = rotatedValue & 0x01;
+        final int newHlByteValue = rotatedValue >> 1;
+
+        memory.writeByte(HL, (short) newHlByteValue);
+        rotationFlagSets(cFlagValue, newHlByteValue);
+
+        totalMCycles += 4;
+        PC += 2;
+    }
+
+    // SLA/SRA (Shift Left/Right Arithmetics)
+    // These are shifts that preserve the sign bit (most significant)
+
+    private void sla_r8(char register) {
+        final int regValue = getr8(register);
+        final int leftShiftValue = rotateLeft(regValue);
+
+        // bit 9 now holds the sign value of original regValue, so we copy to 8th bit
+        final int cFlagValue = leftShiftValue >> 8;
+        int newRegValue;
+        if (cFlagValue == 1) {
+            // or into 8th bit
+            newRegValue = (leftShiftValue & 0xFF) | (cFlagValue << 7);
+        } else {
+            // and into 8th bit (can't "or" 0 in!)
+            newRegValue = (leftShiftValue & 0xFF) & (cFlagValue << 7);
+        }
+
+        setr8(register, newRegValue);
+        rotationFlagSets(cFlagValue, newRegValue);
+
+        totalMCycles += 2;
+        PC += 2;
+    }
+
+    // same as above but accesses HL byte val
+    private void sla_phl() {
+        final int hlByteValue = memory.readByte(HL);
+        final int leftShiftValue = rotateLeft(hlByteValue);
+
+        final int cFlagValue = leftShiftValue >> 8;
+        int newHlByteValue;
+        if (cFlagValue == 1) {
+            newHlByteValue = (leftShiftValue & 0xFF) | (cFlagValue << 7);
+        } else {
+            newHlByteValue = (leftShiftValue & 0xFF) & (cFlagValue << 7);
+        }
+
+        memory.writeByte(HL, (short) newHlByteValue);
+        rotationFlagSets(cFlagValue, newHlByteValue);
+
+        totalMCycles += 4;
+        PC += 2;
+    }
+
+    private void sra_r8(char register) {
+        final int regValue = getr8(register);
+        final int rightShiftValue = rotateRight(regValue);
+
+        // out of 9bits, bit 1 holds cFlag and bit 8 holds previous sign value, copy 8 into 9
+        final int cFlagValue = rightShiftValue & 0x01;
+        final int signValue = (rightShiftValue & 0xFF) >> 7;
+        int newRegValue;
+        if (signValue == 1) {
+            // "or". Place saved sign into 9th bit, then shift everything right 1 to keep byte value of it
+            newRegValue = (rightShiftValue | (signValue << 8)) >> 1;
+        } else {
+            // if sign is 0, 9th bit is 0 anyway, so we don't need to change anything. (just bit shift 1)
+            newRegValue = rightShiftValue >> 1;
+        }
+
+        setr8(register, newRegValue);
+        rotationFlagSets(cFlagValue, newRegValue);
+
+        totalMCycles += 2;
+        PC += 2;
+    }
+
+    // same as above for [HL]
+    private void sra_phl() {
+        final int hlByteValue = memory.readByte(HL);
+        final int rightShiftValue = rotateRight(hlByteValue);
+
+        final int cFlagValue = rightShiftValue & 0x01;
+        final int signValue = (rightShiftValue & 0xFF) >> 7;
+        int newHlByteValue;
+        if (signValue == 1) {
+            newHlByteValue = (rightShiftValue | (signValue << 8)) >> 1;
+        } else {
+            newHlByteValue = rightShiftValue >> 1;
+        }
+
+        memory.writeByte(HL, (short) newHlByteValue);
+        rotationFlagSets(cFlagValue, newHlByteValue);
+
+        totalMCycles += 4;
+        PC += 2;
+    }
 
 
     // ------ HELPER METHODS --------
@@ -1915,7 +2141,7 @@ public class CPU {
         setCFlag(false);
     }
 
-    private void rotationFlagSets(final int cFlagResult) {
+    private void rotationAFlagSets(final int cFlagResult) {
         setZFlag(false);
         setNFlag(false);
         setHFlag(false);
@@ -1924,6 +2150,21 @@ public class CPU {
         } else {
             setCFlag(false);
         }
+    }
+
+    private void rotationFlagSets(final int cFlagResult, final int result) {
+        if (result == 0) {
+            setZFlag(true);
+        } else {
+            setZFlag(false);
+        }
+        if (cFlagResult == 1) {
+            setCFlag(true);
+        } else {
+            setCFlag(false);
+        }
+        setNFlag(false); // these must be set to false for rrc/rlc's
+        setHFlag(false);
     }
 
     /**
@@ -1948,6 +2189,75 @@ public class CPU {
         } else {
             return result;
         }
+    }
+
+    /**
+     * 8bit Rotate right mechanism. For avoiding repeated calls in rotate instructions.
+     * It places C flag value on the left and shifts everything left.
+     * @param value the value to rotate
+     * @return rotated value
+     */
+    private int rotateLeft(final int value) {
+        int cFlagValue = 0;
+        if (cFlagOn()) cFlagValue = 1;
+
+        // combine in correct bit places
+        final int combine = (cFlagValue << 9) | value;
+        final int leftRotateResult = (combine << 1) & 0b111111111; // & ensures we only keep the 9 bits (we don't want 10)
+
+        return leftRotateResult;
+    }
+
+    /**
+     * 8bit Rotate right mechanism. For avoiding repeated calls in rotate instructions.
+     * Places C flag value on right and shifts everything right.
+     * @param value the value to rotate
+     * @return rotated value
+     */
+    private int rotateRight(final int value) {
+        int cFlagValue = 0;
+        if (cFlagOn()) cFlagValue = 1;
+
+        final int combine = (value << 1) | cFlagValue;
+        final int rightRotateResult = (combine >> 1) & 0b111111111; // 9bits only
+
+        return rightRotateResult;
+    }
+
+    private int rotateLeftThroughC(final int value) {
+        int cFlagValue = 0;
+        if (cFlagOn()) cFlagValue = 1;
+
+        final int combine = cFlagValue << 9 | value; // bit 9 = cFlag
+        final int leftRotateResult = combine << 1; // keep 10 bits this time (to wrap c back around)
+
+        // keep last bit (10th since we shifted left 1) and shifts back to 1st bit placement
+        final int overflowBit = (leftRotateResult & 0b1000000000) >> 9;
+        // places overflow bit to the first bit of val and keeps 9 bits (carry at 9)
+        final int leftRotatedValue = (leftRotateResult | overflowBit) & 0b111111111;
+
+        return leftRotatedValue;
+    }
+
+    private int rotateRightThroughC(final int value) {
+        int cFlagValue = 0;
+        if (cFlagOn()) cFlagValue = 1;
+
+        // we'll need to make this 10 bits long, and consider bit 0 as the underflow bit (to move to bit 9)
+        final int combine = (value << 2) | (cFlagValue << 1); // bit 0 = 0, bit 1 = cFlag
+        final int rightRotateResult = combine >> 1;
+
+        final int underflowBit = rightRotateResult & 0b000000001; // keep 1st bit (bit 0) to wrap around
+
+        int rightRotatedValue;
+        if (underflowBit == 1) { // if on, we can OR to apply it
+            rightRotatedValue = (underflowBit << 8) | (rightRotateResult >> 2);
+        } else { // if off, we need to AND
+            // put 1's to the rest of the 9bit underflow so we don't change the other values
+            rightRotatedValue = (0b011111111) & (rightRotateResult >> 1);
+        }
+
+        return rightRotatedValue;
     }
 
 }

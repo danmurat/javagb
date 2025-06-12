@@ -10,7 +10,7 @@ public class Run {
         System.out.println("Welcom to Java gb");
 
         // -- SET UP
-        Memory memory = new Memory("individual/06-ld r,r.gb");
+        Memory memory = new Memory("individual/02-interrupts.gb");
         CPU cpu = new CPU(memory);
         memory.setCPU(cpu);
         //memory.hexDumpRomContents();
@@ -35,8 +35,6 @@ public class Run {
          */
         int executionAmount = 0;
 
-        int testFlip = 0xFB;
-        System.out.println("Test flip: " + memory.getTwosCompliment(testFlip));
         //while (executionAmount < 17467) {
         while (true) {
             //System.out.print(executionAmount + ": ");
