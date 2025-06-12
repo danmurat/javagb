@@ -1826,7 +1826,73 @@ public class CPU {
             case 0xBE -> res_u3_phl(7);
             case 0xBF -> res_u3_r8(7, 'A');
 
+            case 0xC0 -> set_u3_r8(0, 'B');
+            case 0xC1 -> set_u3_r8(0, 'C');
+            case 0xC2 -> set_u3_r8(0, 'D');
+            case 0xC3 -> set_u3_r8(0, 'E');
+            case 0xC4 -> set_u3_r8(0, 'H');
+            case 0xC5 -> set_u3_r8(0, 'L');
+            case 0xC6 -> set_u3_phl(0);
+            case 0xC7 -> set_u3_r8(0, 'A');
+            case 0xC8 -> set_u3_r8(1, 'B');
+            case 0xC9 -> set_u3_r8(1, 'C');
+            case 0xCA -> set_u3_r8(1, 'D');
+            case 0xCB -> set_u3_r8(1, 'E');
+            case 0xCC -> set_u3_r8(1, 'H');
+            case 0xCD -> set_u3_r8(1, 'L');
+            case 0xCE -> set_u3_phl(1);
+            case 0xCF -> set_u3_r8(1, 'A');
 
+            case 0xD0 -> set_u3_r8(2, 'B');
+            case 0xD1 -> set_u3_r8(2, 'C');
+            case 0xD2 -> set_u3_r8(2, 'D');
+            case 0xD3 -> set_u3_r8(2, 'E');
+            case 0xD4 -> set_u3_r8(2, 'H');
+            case 0xD5 -> set_u3_r8(2, 'L');
+            case 0xD6 -> set_u3_phl(2);
+            case 0xD7 -> set_u3_r8(2, 'A');
+            case 0xD8 -> set_u3_r8(3, 'B');
+            case 0xD9 -> set_u3_r8(3, 'C');
+            case 0xDA -> set_u3_r8(3, 'D');
+            case 0xDB -> set_u3_r8(3, 'E');
+            case 0xDC -> set_u3_r8(3, 'H');
+            case 0xDD -> set_u3_r8(3, 'L');
+            case 0xDE -> set_u3_phl(3);
+            case 0xDF -> set_u3_r8(3, 'A');
+
+            case 0xE0 -> set_u3_r8(4, 'B');
+            case 0xE1 -> set_u3_r8(4, 'C');
+            case 0xE2 -> set_u3_r8(4, 'D');
+            case 0xE3 -> set_u3_r8(4, 'E');
+            case 0xE4 -> set_u3_r8(4, 'H');
+            case 0xE5 -> set_u3_r8(4, 'L');
+            case 0xE6 -> set_u3_phl(4);
+            case 0xE7 -> set_u3_r8(4, 'A');
+            case 0xE8 -> set_u3_r8(5, 'B');
+            case 0xE9 -> set_u3_r8(5, 'C');
+            case 0xEA -> set_u3_r8(5, 'D');
+            case 0xEB -> set_u3_r8(5, 'E');
+            case 0xEC -> set_u3_r8(5, 'H');
+            case 0xED -> set_u3_r8(5, 'L');
+            case 0xEE -> set_u3_phl(5);
+            case 0xEF -> set_u3_r8(5, 'A');
+
+            case 0xF0 -> set_u3_r8(6, 'B');
+            case 0xF1 -> set_u3_r8(6, 'C');
+            case 0xF2 -> set_u3_r8(6, 'D');
+            case 0xF3 -> set_u3_r8(6, 'E');
+            case 0xF4 -> set_u3_r8(6, 'H');
+            case 0xF5 -> set_u3_r8(6, 'L');
+            case 0xF6 -> set_u3_phl(6);
+            case 0xF7 -> set_u3_r8(6, 'A');
+            case 0xF8 -> set_u3_r8(7, 'B');
+            case 0xF9 -> set_u3_r8(7, 'C');
+            case 0xFA -> set_u3_r8(7, 'D');
+            case 0xFB -> set_u3_r8(7, 'E');
+            case 0xFC -> set_u3_r8(7, 'H');
+            case 0xFD -> set_u3_r8(7, 'L');
+            case 0xFE -> set_u3_phl(7);
+            case 0xFF -> set_u3_r8(7, 'A');
 
             default -> throw new RuntimeException("invalid opcode: " + opcode);
         }
@@ -2150,14 +2216,14 @@ public class CPU {
         final int regValue = getr8(register);
 
         switch (bitIndex) {
-            case 0 -> handleBitTest(regValue & setBit0);
-            case 1 -> handleBitTest(regValue & setBit1);
-            case 2 -> handleBitTest(regValue & setBit2);
-            case 3 -> handleBitTest(regValue & setBit3);
-            case 4 -> handleBitTest(regValue & setBit4);
-            case 5 -> handleBitTest(regValue & setBit5);
-            case 6 -> handleBitTest(regValue & setBit6);
-            case 7 -> handleBitTest(regValue & setBit7);
+            case 0 -> setr8(register, regValue & setBit0);
+            case 1 -> setr8(register, regValue & setBit1);
+            case 2 -> setr8(register, regValue & setBit2);
+            case 3 -> setr8(register, regValue & setBit3);
+            case 4 -> setr8(register, regValue & setBit4);
+            case 5 -> setr8(register, regValue & setBit5);
+            case 6 -> setr8(register, regValue & setBit6);
+            case 7 -> setr8(register, regValue & setBit7);
             default -> throw new RuntimeException("invalid bitIndex: " + bitIndex);
         }
 
@@ -2179,14 +2245,14 @@ public class CPU {
         final int hlByteValue = memory.readByte(HL);
 
         switch (bitIndex) {
-            case 0 -> handleBitTest(hlByteValue & setBit0);
-            case 1 -> handleBitTest(hlByteValue & setBit1);
-            case 2 -> handleBitTest(hlByteValue & setBit2);
-            case 3 -> handleBitTest(hlByteValue & setBit3);
-            case 4 -> handleBitTest(hlByteValue & setBit4);
-            case 5 -> handleBitTest(hlByteValue & setBit5);
-            case 6 -> handleBitTest(hlByteValue & setBit6);
-            case 7 -> handleBitTest(hlByteValue & setBit7);
+            case 0 -> memory.writeByte(HL, (short) (hlByteValue & setBit0));
+            case 1 -> memory.writeByte(HL, (short) (hlByteValue & setBit1));
+            case 2 -> memory.writeByte(HL, (short) (hlByteValue & setBit2));
+            case 3 -> memory.writeByte(HL, (short) (hlByteValue & setBit3));
+            case 4 -> memory.writeByte(HL, (short) (hlByteValue & setBit4));
+            case 5 -> memory.writeByte(HL, (short) (hlByteValue & setBit5));
+            case 6 -> memory.writeByte(HL, (short) (hlByteValue & setBit6));
+            case 7 -> memory.writeByte(HL, (short) (hlByteValue & setBit7));
             default -> throw new RuntimeException("invalid bitIndex: " + bitIndex);
         }
 
@@ -2195,6 +2261,65 @@ public class CPU {
     }
 
 
+    // SET instrs (opposite of RES, we set the bitIndex to 1)
+
+    private void set_u3_r8(final int bitIndex, final char register) {
+        // use these to OR the correct bitIndex to 1
+        final int setBit0 = 0b00000001;
+        final int setBit1 = 0b00000010;
+        final int setBit2 = 0b00000100;
+        final int setBit3 = 0b00001000;
+        final int setBit4 = 0b00010000;
+        final int setBit5 = 0b00100000;
+        final int setBit6 = 0b01000000;
+        final int setBit7 = 0b10000000;
+
+        final int regValue = getr8(register);
+
+        switch (bitIndex) {
+            case 0 -> setr8(register, regValue | setBit0);
+            case 1 -> setr8(register, regValue | setBit1);
+            case 2 -> setr8(register, regValue | setBit2);
+            case 3 -> setr8(register, regValue | setBit3);
+            case 4 -> setr8(register, regValue | setBit4);
+            case 5 -> setr8(register, regValue | setBit5);
+            case 6 -> setr8(register, regValue | setBit6);
+            case 7 -> setr8(register, regValue | setBit7);
+            default -> throw new RuntimeException("invalid bitIndex: " + bitIndex);
+        }
+
+        totalMCycles += 2;
+        PC += 2;
+    }
+
+    private void set_u3_phl(final int bitIndex) {
+        // use these to OR the correct bitIndex to 1
+        final int setBit0 = 0b00000001;
+        final int setBit1 = 0b00000010;
+        final int setBit2 = 0b00000100;
+        final int setBit3 = 0b00001000;
+        final int setBit4 = 0b00010000;
+        final int setBit5 = 0b00100000;
+        final int setBit6 = 0b01000000;
+        final int setBit7 = 0b10000000;
+
+        final int hlByteValue = memory.readByte(HL);
+
+        switch (bitIndex) {
+            case 0 -> memory.writeByte(HL, (short) (hlByteValue | setBit0));
+            case 1 -> memory.writeByte(HL, (short) (hlByteValue | setBit1));
+            case 2 -> memory.writeByte(HL, (short) (hlByteValue | setBit2));
+            case 3 -> memory.writeByte(HL, (short) (hlByteValue | setBit3));
+            case 4 -> memory.writeByte(HL, (short) (hlByteValue | setBit4));
+            case 5 -> memory.writeByte(HL, (short) (hlByteValue | setBit5));
+            case 6 -> memory.writeByte(HL, (short) (hlByteValue | setBit6));
+            case 7 -> memory.writeByte(HL, (short) (hlByteValue | setBit7));
+            default -> throw new RuntimeException("invalid bitIndex: " + bitIndex);
+        }
+
+        totalMCycles += 4;
+        PC += 2;
+    }
 
     // ------ HELPER METHODS --------
 

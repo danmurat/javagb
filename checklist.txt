@@ -102,5 +102,5 @@ There are 3 main instructions left for the whole 256 prefix opcode set:
 They take up 4 rows each, but each instruction just has different params, so shouldn't be too time consuming to implement
 
 - implement BIT instructions [DONE]
-- implement RES instructions [in progress]
-- implement SET instructions [to do]
+- implement RES instructions [DONE]
+- implement SET instructions [in progress]
