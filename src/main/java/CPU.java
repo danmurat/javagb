@@ -1580,15 +1580,58 @@ public class CPU {
 
     // Miscellaneous instructions
 
+    /**
+     * Bigger comment here since this instruction is a bit tricky.
+     * DAA (Decimal Adjust Acumulator) uses BCD (Binary Coded Decimal) arithmetic. BCD treats each nibble as a decimal,
+     * 0-9 (some binary value that represents 0-9). Any nibble representing 10,11, etc is INVALID.
+     * So BCD would represent 59 with upperNibble=5 and lowerNibble=9.
+     * When we do arithmetic, the result can change the values of those nibbles and could fall out of range (> 10),
+     * and so we need to adjust as shown below. 0x6/0x60 will adjust the value to skip over the 6 invalid states
+     * in binary/hex 0xA-0xF (so it works just like decimal, 9 + 1 = 9 becomes 0, carry next value to left = 10.
+     * <br><br>
+     * Example:
+     * 0111 0101 = 117 (as regular binary value)
+     * BCD treats these as 2 seperate nibbles and counts 0-9 for them
+     * 0111 = 7, 0101 = 5 => 0111 0101 = 75 (in BCD)
+     * <br><br>
+     * DAA adjusts the RESULT of some BCD operation that has happened! Sometimes these operations can result in values
+     * not being in BCD range (0-99), and thus needs adjusting by DAA.
+     * <br>
+     * 0x20 - 0x13 = 0x0D. This is not a BCD because the first digit > 9 (not decimal), and we had to borrow from the
+     * second digit. So we subtract 6 from it to get the valid BCD value = 0x07. Because 20-13 = 7!
+     * <br>
+     * The same applies for addition. 0x92 + 0x13 = 0xA5, but 0xA5 is not BCD. Since result > 0x99, we add upper nibble
+     * by 6 to give = 0x05 (92 + 13 = 05 when wrapping the overflow around). This in turn sets the carry flag on because
+     * we've overflowed.
+     * <br>
+     * This also works for when a previous addition has actually overflown. Take 0x99 + 0x90 = 0x129. This > 0xFF so has
+     * overflown and we wrap this around to 0x29 (with a carry flag on). 99 + 90 = 189, but > 99 so = 89 with a carry.
+     * Since the carry flag is on, we add 0x6 to the upper nibble, 0x29 becomes 0x89 (just like the decimal).
+     * <br><br>
+     * I had a huge issue with figuring out how to set the carry flag here. https://rgbds.gbdev.io/docs/v0.9.1/gbz80.7#DAA
+     * indicated to set or reset C depending on the operation. It turns out however, you don't reset.
+     * <br>
+     * Because the result of the previous operation should still stand, and we are just converting, we don't turn the
+     * carry flag off.
+     * <br>
+     * When subtracting, there's no need to set the carry to on at all, because the applying the adjustment will never
+     * result in an underflow. If a previous BCD subtraction resulted in an underflow (c flag on) then - 0x60 never underflows
+     * again since the wrapped value will always be > 0x60. (0x00 - 0x90) "bcd won't go > 9", the 9 wraps back to 0x70.
+     * <br>
+     * You might think, well what about the h flag? The same concept as above applies. The result always at least 0x7.
+     * Take 0x10 - 0x09 = 0x07. We've borrowed 1 from 0x10. So 9 - 0 = F all the way to 7. Since we have a half carry,
+     * 0x7 - 0x6 = 0x1. This doesn't underflow. 9 is the max and 0 is the min, it's not possible to underflow.
+     * <br><br>
+     * When adding, there's only 1 case where we should set carry on. That's if the result was > 0x99. If A is more than this,
+     * we know we need to add that value by 0x60 to get the BCD result. This will overflow A, so we must set it.
+     */
     private void daa() { // decimal adjust accumulator
         int adjustment = 0;
         if (nFlagOn()) {
-            if (hFlagOn()) adjustment += 0x6;
-            if (cFlagOn()) adjustment += 0x60;
+            if (hFlagOn()) adjustment += 0x6;  // h flag is for nibble. If on, then the result is over 0x9 (dec) we must sub by 0x6
+            if (cFlagOn()) adjustment += 0x60; // same reasoning applies here
             final int aRegValue = getr8('A');
             int newAValue = aRegValue - adjustment;
-            //cFlag_8bit_borrow(aRegValue, adjustment); commenting this out too because of overflow thing below
-            if (newAValue < 0) setCFlag(true);
             newAValue = checkAndSetUnderflowVal8bit(newAValue);
             setr8('A', newAValue);
         } else {
@@ -1596,16 +1639,16 @@ public class CPU {
             if (hFlagOn() || (aRegValue & 0xF) > 0x9) adjustment += 0x6;
             if (cFlagOn() || aRegValue > 0x99) {
                 adjustment += 0x60;
+                // if cFlag was not on, make sure we turn on since the 0x60 will cause the overflow
+                setCFlag(true);
             }
             int newAValue = aRegValue + adjustment;
-            //cFlag_8bit_overflow(newAValue); TEST IS EXPECTING CFLAG TO STILL BE ON??? commenting out for now
-            if (newAValue > 0xFF) setCFlag(true); // it might only want us to set to true when found (and not false when not)
             newAValue = checkAndSetOverflowVal8bit(newAValue);
             setr8('A', newAValue);
         }
 
         setZFlag(getr8('A') == 0);
-        setHFlag(false);
+        setHFlag(false); // only DAA uses half carry flag, so just sets to false (nothing else needs it)
         // c flag should already be set in elif
 
         totalMCycles += 1;

@@ -39,7 +39,7 @@ public class Run {
         while (true) {
             //System.out.print(executionAmount + ": ");
             //cpu.printPC();
-            logState(cpu); // every instr
+            //logState(cpu); // every instr
             cpu.executeInstruction(); // handles the above comment
 
             //cpu.printOP();
@@ -51,7 +51,7 @@ public class Run {
                 memory.writeByte(0xFF02, (short) 0x00);
             }
 
-            executionAmount++;
+            //executionAmount++;
         }
     }
 
