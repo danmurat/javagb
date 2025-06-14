@@ -31,7 +31,8 @@ public class CPU {
     private int PC;
 
     private boolean IME; // interrupt master enable flag (write only)
-    private boolean eiTurnImeOn; // ei turns IME on after the next instruction (so we use this to check in executeInstr())
+    // effect of IE is delayed by 1 instruction. So we use "save" the intention, and turn IME = true after next instr
+    private boolean eiTurnImeOn;
 
     /*
     HANDLING CLOCK CYCLES:
@@ -128,9 +129,9 @@ public class CPU {
             currentOpcode = opcode; // DEBUG STATEMENT (a global opcode)
             instructionCall(opcode);
         } else {
-            if (IME) {
-                interruptHandle(); // this may never actually execute
-            }
+            /*if (IME) {
+                interruptHandle(); // this shouldn't execute...
+            }*/
             final short opcode = memory.readByte(PC);
             instructionCall(opcode);
             // this makes ei turn IME on AFTER the next instruction is finished
@@ -296,14 +297,14 @@ public class CPU {
             case 0x7E -> ld_r8_phl('A');
             case 0x7F -> ld_r8_r8('A', 'A');
 
-            case 0x80 -> add_a_r8('B');
-            case 0x81 -> add_a_r8('C');
-            case 0x82 -> add_a_r8('D');
-            case 0x83 -> add_a_r8('E');
-            case 0x84 -> add_a_r8('H');
-            case 0x85 -> add_a_r8('L');
-            case 0x86 -> add_a_phl();
-            case 0x87 -> add_a_r8('A');
+            case 0x80 -> add_a_r8('B', 0);
+            case 0x81 -> add_a_r8('C', 0);
+            case 0x82 -> add_a_r8('D', 0);
+            case 0x83 -> add_a_r8('E', 0);
+            case 0x84 -> add_a_r8('H', 0);
+            case 0x85 -> add_a_r8('L', 0);
+            case 0x86 -> add_a_phl(0);
+            case 0x87 -> add_a_r8('A', 0);
             case 0x88 -> adc_a_r8('B');
             case 0x89 -> adc_a_r8('C');
             case 0x8A -> adc_a_r8('D');
@@ -313,14 +314,14 @@ public class CPU {
             case 0x8E -> adc_a_phl();
             case 0x8F -> adc_a_r8('A');
 
-            case 0x90 -> sub_a_r8('B');
-            case 0x91 -> sub_a_r8('C');
-            case 0x92 -> sub_a_r8('D');
-            case 0x93 -> sub_a_r8('E');
-            case 0x94 -> sub_a_r8('H');
-            case 0x95 -> sub_a_r8('L');
-            case 0x96 -> sub_a_phl();
-            case 0x97 -> sub_a_r8('A');
+            case 0x90 -> sub_a_r8('B', 0);
+            case 0x91 -> sub_a_r8('C', 0);
+            case 0x92 -> sub_a_r8('D', 0);
+            case 0x93 -> sub_a_r8('E', 0);
+            case 0x94 -> sub_a_r8('H', 0);
+            case 0x95 -> sub_a_r8('L', 0);
+            case 0x96 -> sub_a_phl(0);
+            case 0x97 -> sub_a_r8('A', 0);
             case 0x98 -> sbc_a_r8('B');
             case 0x99 -> sbc_a_r8('C');
             case 0x9A -> sbc_a_r8('D');
@@ -370,7 +371,7 @@ public class CPU {
             case 0xC3 -> jp_n16();
             case 0xC4 -> call_nz_n16();
             case 0xC5 -> push_r16('B', 'C');
-            case 0xC6 -> add_a_n8();
+            case 0xC6 -> add_a_n8(0);
             case 0xC7 -> rst(0x00);
             case 0xC8 -> ret_z();
             case 0xC9 -> ret();
@@ -386,7 +387,7 @@ public class CPU {
             case 0xD2 -> jp_nc_n16();
             case 0xD4 -> call_nc_n16();
             case 0xD5 -> push_r16('D', 'E');
-            case 0xD6 -> sub_a_n8();
+            case 0xD6 -> sub_a_n8(0);
             case 0xD7 -> rst(0x10);
             case 0xD8 -> ret_c();
             case 0xD9 -> reti();
@@ -426,74 +427,41 @@ public class CPU {
     }
 
 
-
-
     // TODO: shorten this!! lot of repeats
     private void interruptHandle() {
-        final int pcHighByte = PC >> 8;
-        final int pcLowByte = PC & 0xFF;
-
-        totalMCycles += 2;
-
+        totalMCycles += 2; // 2 cycles doing nothing
         // this instruction only runs if the IME is on
-        // check which interrput we are handling (already in heirarchy)
+        // check which interrupt we are handling (hierarchical, we check vBlank first, and so on)
         if (memory.vBlankRequest() && memory.vBlankEnable()) {
             memory.vBlankRequestReset();
             IME = false;
-            // pc pushed to stack, then = source address
-            SP--;
-            memory.writeByte(SP, (short) pcHighByte);
-            SP--;
-            memory.writeByte(SP, (short) pcLowByte);
+            pushPCToStack();
+            /*
+            I wonder if our implementation is incorrect, because we are pushing the current PC and not the
+            PC of the next instruction (the same issue we had with CALL).
+             */
             PC = V_BLANK_SOURCE_ADDRESS;
-
-            totalMCycles += 3;
         } else if (memory.lcdRequest() && memory.lcdEnable()) {
             memory.lcdRequestReset();
             IME = false;
-
-            SP--;
-            memory.writeByte(SP, (short) pcHighByte);
-            SP--;
-            memory.writeByte(SP, (short) pcLowByte);
+            pushPCToStack();
             PC = STAT_SOURCE_ADDRESS;
-
-            totalMCycles += 3;
         } else if (memory.timerRequest() && memory.timerEnable()) {
             memory.timerRequestReset();
             IME = false;
-
-            SP--;
-            memory.writeByte(SP, (short) pcHighByte);
-            SP--;
-            memory.writeByte(SP, (short) pcLowByte);
+            pushPCToStack();
             PC = TIMER_SOURCE_ADDRESS;
-
-            totalMCycles += 3;
         } else if (memory.serialRequest() && memory.serialEnable()) {
             memory.serialRequestReset();
             IME = false;
-
-            SP--;
-            memory.writeByte(SP, (short) pcHighByte);
-            SP--;
-            memory.writeByte(SP, (short) pcLowByte);
+            pushPCToStack();
             PC = SERIAL_SOURCE_ADDRESS;
-
-            totalMCycles += 3;
         } else if (memory.joypadRequest() && memory.joypadEnable()) {
             memory.joypadRequestReset();
             IME = false;
-
-            SP--;
-            memory.writeByte(SP, (short) pcHighByte);
-            SP--;
-            memory.writeByte(SP, (short) pcLowByte);
+            pushPCToStack();
             PC = JOYPAD_SOURCE_ADDRESS;
-
-            totalMCycles += 3;
         }
-
         /*
         So whatever the interrupt is, the cpu begins executing code programmed by the game when we
         jump to 0x60 for example. Once the interrupt is handled (as intended by the game) there will be
@@ -506,8 +474,6 @@ public class CPU {
     // with help from https://rgbds.gbdev.io/docs/v0.9.1/gbz80.7#INSTRUCTION_REFERENCE
     // r = register, so r8 = 8bit reg, r16 = 16bit. pr = the address a register points to
     // n = mem value at PC, n16 is the little endian word (handled in read/writeWord())
-    // snake_casing for now since camelCase looks extremely bad for these names
-
 
     // --- LD 's ---
 
@@ -687,18 +653,18 @@ public class CPU {
         PC += 1;
     }
 
+    // ADD the signed imm value to SP, then load to hl
     private void ld_hl_spe8() {
-        final int addressValue = memory.readByte(PC + 1); // signed
-        SP += addressValue;
-        setr16("HL", SP);
+        final int immValue = memory.readByte(PC + 1);
+        final int signedImmValue = memory.getTwosCompliment(immValue);
+        // are we supposed to throw away the result??
+        final int result = SP + signedImmValue;
+        setr16("HL", result);
 
         setZFlag(false);
         setNFlag(false);
-        if (SP > 0xFF) {
-            setCFlag(true);
-        } else if (SP > 0xF){
-            setHFlag(true);
-        }
+        setHFlag(result > 0xF);  // descriptions indicate set if overflow from bit 3 and bit 7, skeptical
+        setCFlag(result > 0xFF); // that this is fine for a 16bit value??
 
         totalMCycles += 3;
         PC += 2;
@@ -795,13 +761,16 @@ public class CPU {
 
     // --- ADD instructions ---
 
-    private void add_a_r8(final char register) {
+    // NOTE: the carryFlag here is for when ADC calls and includes a carryFlag on. When we don't care about the carryFlag
+    // (like in a regular ADD), it's just set to 0 so it doesn't interfere with the result. ADC will call this method
+    // with carryFlag = 1 if it's on, and will include the correct calculations.
+    private void add_a_r8(final char register, final int carryFlag) {
         final int aValue = getr8('A');
         final int r8Value = getr8(register);
-        int result = aValue + r8Value;
+        int result = aValue + r8Value + carryFlag;
 
         setNFlag(false);
-        hFlag_8bit_overflow(aValue, r8Value);
+        hFlag_8bit_overflow(aValue, r8Value + carryFlag);
         cFlag_8bit_overflow(result);
         // handle carry (above just set flags..)
         result = (short) checkAndSetOverflowVal8bit(result);
@@ -813,13 +782,13 @@ public class CPU {
         PC += 1;
     }
 
-    private void add_a_n8() {
+    private void add_a_n8(final int carryFlag) {
         final short addressValue = memory.readByte(PC + 1);
         final short aValue = (short) getr8('A');
-        int result = aValue + addressValue;
+        int result = aValue + addressValue + carryFlag;
 
         setNFlag(false);
-        hFlag_8bit_overflow(aValue, addressValue);
+        hFlag_8bit_overflow(aValue, addressValue + carryFlag);
         cFlag_8bit_overflow(result);
 
         result = (short) checkAndSetOverflowVal8bit(result);
@@ -831,13 +800,13 @@ public class CPU {
         PC += 2;
     }
 
-    private void add_a_phl() {
+    private void add_a_phl(final int carryFlag) {
         final short addressValue = memory.readByte(HL); // TODO: basically dupelicate with add a,n8
         final short aValue = (short) getr8('A');
-        int result = aValue + addressValue;
+        int result = aValue + addressValue + carryFlag;
 
         setNFlag(false);
-        hFlag_8bit_overflow(aValue, addressValue);
+        hFlag_8bit_overflow(aValue, addressValue + carryFlag);
         cFlag_8bit_overflow(result);
 
         result = (short) checkAndSetOverflowVal8bit(result);
@@ -913,32 +882,31 @@ public class CPU {
 
     private void adc_a_r8(final char register) {
         final int carryFlagValue = cFlagOn() ? 1 : 0;
-        setr8('A', getr8('A') + carryFlagValue);
-        add_a_r8(register); // then do the remaining addition (which does flag checks again + cycle/pc increments)
+        add_a_r8(register, carryFlagValue); // then do the remaining addition (which does flag checks again + cycle/pc increments)
     }
 
     private void adc_a_phl() {
         final int carryFlagValue = cFlagOn() ? 1 : 0;
-        setr8('A', getr8('A') + carryFlagValue);
-        add_a_phl();
+        add_a_phl(carryFlagValue);
     }
 
     private void adc_a_n8() {
         final int carryFlagValue = cFlagOn() ? 1 : 0;
-        setr8('A', getr8('A') + carryFlagValue);
-        add_a_n8();
+        add_a_n8(carryFlagValue);
     }
 
     // SUB instructions
 
-    private void sub_a_r8(final char register) { // for a case, z flag should always be true, and h/c flags to false
+    // the same carryFlag reason in ADD and ADC applies here also. Will be 0 for SUB, unaffecting the result, but
+    // 1 if we call SBC and carryFlag is on
+    private void sub_a_r8(final char register, final int carryFlag) { // for a case, z flag should always be true, and h/c flags to false
         final short aValue = (short) getr8('A'); // below code should still work correct for a case regardless
         final short r8Value = (short) getr8(register);
-        int result = aValue - r8Value;
+        int result = aValue - r8Value - carryFlag;
 
         setNFlag(true);
-        hFlag_8bit_borrow(aValue, r8Value);
-        cFlag_8bit_borrow(aValue, r8Value);
+        hFlag_8bit_borrow(aValue, r8Value - carryFlag);
+        cFlag_8bit_borrow(aValue, r8Value - carryFlag);
 
         result = checkAndSetUnderflowVal8bit(result);
         zFlag_8bit_overflow_or_borrow(result);
@@ -949,14 +917,14 @@ public class CPU {
         PC += 1;
     }
 
-    private void sub_a_phl() {
+    private void sub_a_phl(final int carryFlag) {
         final short aValue = (short) getr8('A');
         final short addressValue = memory.readByte(HL);
-        int result = aValue - addressValue;
+        int result = aValue - addressValue - carryFlag;
 
         setNFlag(true);
-        hFlag_8bit_borrow(aValue, addressValue);
-        cFlag_8bit_borrow(aValue, addressValue);
+        hFlag_8bit_borrow(aValue, addressValue - carryFlag);
+        cFlag_8bit_borrow(aValue, addressValue - carryFlag);
 
         result = checkAndSetUnderflowVal8bit(result);
         zFlag_8bit_overflow_or_borrow(result);
@@ -967,14 +935,14 @@ public class CPU {
         PC += 1;
     }
 
-    private void sub_a_n8() {
+    private void sub_a_n8(final int carryFlag) {
         final short aValue = (short) getr8('A');
         final short addressValue = memory.readByte(PC + 1);
-        int result = aValue - addressValue;
+        int result = aValue - addressValue - carryFlag;
 
         setNFlag(true);
-        hFlag_8bit_borrow(aValue, addressValue);
-        cFlag_8bit_borrow(aValue, addressValue);
+        hFlag_8bit_borrow(aValue, addressValue - carryFlag);
+        cFlag_8bit_borrow(aValue, addressValue - carryFlag);
 
         result = checkAndSetUnderflowVal8bit(result);
         zFlag_8bit_overflow_or_borrow(result);
@@ -990,20 +958,17 @@ public class CPU {
 
     private void sbc_a_r8(final char register) {
         final int carryFlagValue = cFlagOn() ? 1 : 0;
-        setr8('A', getr8('A') - carryFlagValue); // carry flag use
-        sub_a_r8(register);
+        sub_a_r8(register, carryFlagValue);
     }
 
     private void sbc_a_phl() {
         final int carryFlagValue = cFlagOn() ? 1 : 0;
-        setr8('A', getr8('A') - carryFlagValue); // carry flag use
-        sub_a_phl();
+        sub_a_phl(carryFlagValue);
     }
 
     private void sbc_a_n8() {
         final int carryFlagValue = cFlagOn() ? 1 : 0;
-        setr8('A', getr8('A') - carryFlagValue); // carry flag use
-        sub_a_n8();
+        sub_a_n8(carryFlagValue);
     }
 
     // Bitwise instructions (AND, OR, XOR, CPL)
@@ -1341,8 +1306,7 @@ public class CPU {
         PC = (pcHighByte << 8) | pcLowByte;
 
         totalMCycles += 4;
-        //PC += 3; // was one, but getting mismatch. Could be because we access 2 bytes worth of SP + 1 PC?
-        // TODO: this might also be 0 (no increment) Since PC is just automaticaly applied? Come back to this and make sure!
+        // no PC increment since we return to original pc
     }
 
     private void ret_z() {
@@ -1386,9 +1350,8 @@ public class CPU {
     }
 
     public void reti() {
-        ret();
         IME = true;
-        // cycles/pc already set
+        ret();
     }
 
 
@@ -1451,14 +1414,22 @@ public class CPU {
 
     // RST instruction
 
-    // is a call instruction on the given vec TODO: no idea if this is correct..
-    private void rst(final int address) {
+    // shorter + faster equivalent to CALL.
+    // push return addr (pc+1 in this case)
+    // destination = imm word (pc+1 & pc+2) + VEC addr
+    private void rst(final int vecAddr) {
+        final int immAddr = PC + 1;
+        final int pcHighByte = immAddr >> 8;
+        final int pcLowByte = immAddr & 0xFF;
         SP--;
-        memory.writeByte(SP, memory.readByte(address));
-        // TODO: do we need to do the implicit jp instruction????
+        memory.writeByte(SP, (short) pcHighByte);
+        SP--;
+        memory.writeByte(SP, (short) pcLowByte);
+
+        final int destAddr = memory.readWord(PC + 1) + vecAddr;
+        PC = destAddr;
 
         totalMCycles += 4;
-        PC += 1;
     }
 
     // Rotation instructions
@@ -1564,6 +1535,7 @@ public class CPU {
         PC += 1;
     }
 
+    // disable interrupts
     private void di() {
         IME = false;
 
@@ -1571,6 +1543,7 @@ public class CPU {
         PC += 1;
     }
 
+    // enable interrupts
     private void ei() {
         eiTurnImeOn = true;
 
@@ -2770,5 +2743,20 @@ public class CPU {
         setNFlag(false);
         setHFlag(true);
     }
+
+    /**
+     * To be used by the Interrupt Handler ONLY!
+     */
+    private void pushPCToStack() {
+        final int pcHighByte = PC >> 8;
+        final int pcLowByte = PC & 0xFF;
+        SP--;
+        memory.writeByte(SP, (short) pcHighByte);
+        SP--;
+        memory.writeByte(SP, (short) pcLowByte);
+
+        totalMCycles += 3;
+    }
+
 
 }

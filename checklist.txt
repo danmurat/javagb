@@ -112,3 +112,20 @@ Now we need to test
 For tomorrow:
     Figure out what's wrong with our DAA instruction. We keep failing tests on there and the setting of the C flags
     seems to be the issue (i'm not sure why).
+
+June 13th:
+DAA solved
+Test rom 1 PASS!!
+
+
+June 14th:
+Work on passing interrupts.
+NOTE:
+    I'm leaving solving the interrupts till a bit later on in development. The first issue was figuring out why my
+    IF wasn't being set, but turns out that interrupt requests are done from outside sources (NOT the CPU). VBlank for
+    example is when we enter Mode 1 in PPU. I'll restart working on interrupts when I've further developed more of the
+    emulator.
+
+Test 06 loads [DONE] PASS
+Test 07, jr,jp,... [DONE] PASS
+Test 03, op sp,hl  [in progress]
