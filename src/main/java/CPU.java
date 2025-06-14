@@ -658,13 +658,17 @@ public class CPU {
         final int immValue = memory.readByte(PC + 1);
         final int signedImmValue = memory.getTwosCompliment(immValue);
         // are we supposed to throw away the result??
-        final int result = SP + signedImmValue;
-        setr16("HL", result);
+        int result = SP + signedImmValue;
 
         setZFlag(false);
         setNFlag(false);
-        setHFlag(result > 0xF);  // descriptions indicate set if overflow from bit 3 and bit 7, skeptical
-        setCFlag(result > 0xFF); // that this is fine for a 16bit value??
+        spHFlagOverflow(SP, signedImmValue);
+        spCFlagOverflow(SP, signedImmValue);
+
+        // check for both 16bit over/underflow
+        result = checkAndSetOverflowVal16bit(result);
+        result = checkAndSetUnderflowVal16bit(result);
+        setr16("HL", result);
 
         totalMCycles += 3;
         PC += 2;
@@ -742,9 +746,8 @@ public class CPU {
     private void inc_r16(final String registers) {
         int registerValue = getr16(registers);
         registerValue++;
+        registerValue = checkAndSetOverflowVal16bit(registerValue);
         setr16(registers, registerValue);
-        // NO FLAGS AFFECTED, so we won't handle overflow/underflow for now
-        // TODO: come back to this. Make sure we DO or DON't need to handle this!
 
         totalMCycles += 2;
         PC += 1;
@@ -753,6 +756,7 @@ public class CPU {
     private void dec_r16(final String registers) {
         int registerValue = getr16(registers);
         registerValue--;
+        registerValue = checkAndSetUnderflowVal16bit(registerValue);
         setr16(registers, registerValue);
 
         totalMCycles += 2;
@@ -829,8 +833,8 @@ public class CPU {
 
         setZFlag(false);
         setNFlag(false);
-        cFlag_8bit_overflow(result);
-        hFlag_8bit_overflow(originalSPVal, signedVal);
+        spHFlagOverflow(originalSPVal, signedVal);
+        spCFlagOverflow(originalSPVal, signedVal);
 
         totalMCycles += 4;
         PC += 2;
@@ -841,34 +845,30 @@ public class CPU {
         switch (registers) {
             case "BC" -> {
                 HL += BC;
+                hFlag_16bit_overflow(initialHLval, BC);
                 if (cFlag_16bit_overflow(HL)) {
-                    HL = HL - 0x10000;
-                } else { // otherwise check if there's a half carry
-                    hFlag_16bit_overflow(initialHLval, BC);
+                    HL = checkAndSetOverflowVal16bit(HL);
                 }
             }
             case "DE" -> {
                 HL += DE;
+                hFlag_16bit_overflow(initialHLval, DE);
                 if (cFlag_16bit_overflow(HL)) {
-                    HL = HL - 0x10000;
-                } else {
-                    hFlag_16bit_overflow(initialHLval, DE);
+                    HL = checkAndSetOverflowVal16bit(HL);
                 }
             }
             case "HL" -> {
                 HL += HL;
+                hFlag_16bit_overflow(initialHLval, initialHLval);
                 if (cFlag_16bit_overflow(HL)) {
-                    HL = HL - 0x10000;
-                } else {
-                    hFlag_16bit_overflow(initialHLval, initialHLval);
+                    HL = checkAndSetOverflowVal16bit(HL);
                 }
             }
             case "SP" -> {
                 HL += SP;
+                hFlag_16bit_overflow(initialHLval, SP);
                 if (cFlag_16bit_overflow(HL)) {
-                    HL = HL - 0x10000;
-                } else {
-                    hFlag_16bit_overflow(initialHLval, SP);
+                    HL = checkAndSetOverflowVal16bit(HL);
                 }
             }
             default -> throw new RuntimeException("invalid register pair: " + registers + " for ADD HL,r16");
@@ -2517,7 +2517,6 @@ public class CPU {
         setHFlag(halfResult > 0xF);
     }
 
-    // this is only used by SP for now (which is 16 bits so doesn't make much sense and can't overflow?)
     private void cFlag_8bit_overflow(final int result) {
         setCFlag(result > 0xFF);
     }
@@ -2548,20 +2547,35 @@ public class CPU {
 
     private void hFlag_16bit_overflow(final int value, final int adder) {
         /*
-        We need to treat this as calculating the carry from the 2 bytes.
-        We calc the first byte, see if there's a half carry.
-        If there is, we add this to the next addition of the upper byte
-        We see if there is a half carry here. If so, we set H to true
-         */
-        final int valueNibble1 = value & 0xF;
-        final int adderNibble1 = adder & 0xF;
-        final int halfResult1 = valueNibble1 + adderNibble1;
-        final int firstHalfCarryVal = halfResult1 > 0xF ? 1 : 0;
+        The above is still incorrect.
+        We need to check from nibble 1 to 3, if there's a carry. If there is, we check the next valueNibble
+        if we can carry from there.
+        If we can't we check the next nibble again.
+        If we reach nibble 4 and we are able to carry, we know a half carry happened.
 
-        final int valueNibble3 = (value >> 8) & 0xF;
-        final int adderNibble3 = (adder >> 8) & 0xF;
-        final int halfResult3 = valueNibble3 + adderNibble3 + firstHalfCarryVal;
-        setHFlag(halfResult3 > 0xF);
+        My thinking right now is just to loop. But I wonder if there is a quicker way to determine this?
+        Just check if both lower 12 bits add up to > 0xFFF. This should be fine.
+         */
+        final int value12bit = value & 0xFFF;
+        final int adder12bit = adder & 0xFFF;
+        final int halfResult = value12bit + adder12bit;
+        setHFlag(halfResult > 0xFFF);
+    }
+
+    // ONLY used in ADD SP,e8
+    // we check if the 16 bit result has any 8bit overflows (carry > 7th, half > 3rd)
+    private void spCFlagOverflow(final int value, final int adder) {
+        final int valueLowerByte = value & 0xFF;
+        final int adderLowerByte = adder & 0xFF;
+        final int result = valueLowerByte + adderLowerByte;
+        setCFlag(result > 0xFF);
+    }
+
+    private void spHFlagOverflow(final int value, final int adder) {
+        final int valueLowerNibble = value & 0xF;
+        final int adderLowerNibble = adder & 0xF;
+        final int halfResult = valueLowerNibble + adderLowerNibble;
+        setHFlag(halfResult > 0xF);
     }
 
 
@@ -2612,6 +2626,23 @@ public class CPU {
     private int checkAndSetUnderflowVal8bit(final int result) {
         if (result < 0) {
             return result + 0x100; // wrap around
+        } else {
+            return result;
+        }
+    }
+
+    // same as 8 bit but for 16bit vals
+    private int checkAndSetOverflowVal16bit(final int result) {
+        if (result > 0xFFFF) {
+            return result - 0x10000;
+        } else {
+            return result;
+        }
+    }
+
+    private int checkAndSetUnderflowVal16bit(final int result) {
+        if (result < 0) {
+            return result + 0x10000;
         } else {
             return result;
         }
