@@ -133,5 +133,9 @@ Test 04, op r,imm  [DONE] PASS
 
 Re-check all our tests still pass (nothing broken) [DONE] 1,3,4,6,7 tests passing
 
-Test 08 misc   [DONE] PASS
-Test 09 op r,r [DONE] PASS
+Test 08 misc      [DONE] PASS
+Test 09 op r,r    [DONE] PASS
+Test 10 bit op    [DONE] PASS
+Test 11 op a,(hl) [DONE] PASS
+
+Everything (but 2) passes! We'll get started on PPU.

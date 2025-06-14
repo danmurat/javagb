@@ -713,14 +713,14 @@ public class CPU {
     private void inc_phl() {
         final short addressValue = memory.readByte(HL);
         final int incrementValue = 1;
-        short result = (short) (addressValue + incrementValue);
+        int result = addressValue + incrementValue;
         setNFlag(false);
         hFlag_8bit_overflow(addressValue, incrementValue);
         // handle overflow
-        result = (short) checkAndSetOverflowVal8bit(result);
-        zFlag_8bit_overflow_or_borrow(addressValue);
+        result = checkAndSetOverflowVal8bit(result);
+        zFlag_8bit_overflow_or_borrow(result);
 
-        memory.writeByte(HL, result);
+        memory.writeByte(HL, (short) result);
 
         totalMCycles += 3;
         PC += 1;
@@ -2264,8 +2264,8 @@ public class CPU {
         final int setBit0 = 0b11111110;
         final int setBit1 = 0b11111101;
         final int setBit2 = 0b11111011;
-        final int setBit3 = 0b11101111;
-        final int setBit4 = 0b01111111;
+        final int setBit3 = 0b11110111;
+        final int setBit4 = 0b11101111;
         final int setBit5 = 0b11011111;
         final int setBit6 = 0b10111111;
         final int setBit7 = 0b01111111;
@@ -2293,8 +2293,8 @@ public class CPU {
         final int setBit0 = 0b11111110;
         final int setBit1 = 0b11111101;
         final int setBit2 = 0b11111011;
-        final int setBit3 = 0b11101111;
-        final int setBit4 = 0b01111111;
+        final int setBit3 = 0b11110111;
+        final int setBit4 = 0b11101111;
         final int setBit5 = 0b11011111;
         final int setBit6 = 0b10111111;
         final int setBit7 = 0b01111111;
