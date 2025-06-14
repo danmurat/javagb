@@ -129,3 +129,4 @@ NOTE:
 Test 06 loads [DONE] PASS
 Test 07, jr,jp,... [DONE] PASS
 Test 03, op sp,hl  [DONE] PASS
+Test 04, op r,imm  [in progress]

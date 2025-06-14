@@ -774,7 +774,12 @@ public class CPU {
         int result = aValue + r8Value + carryFlag;
 
         setNFlag(false);
-        hFlag_8bit_overflow(aValue, r8Value + carryFlag);
+        if (carryFlag == 0) {
+            hFlag_8bit_overflow(aValue, r8Value);
+        } else {
+            hFlag_8bit_overflow(aValue, r8Value);
+            if (!hFlagOn()) hFlag_8bit_overflow(aValue + r8Value, carryFlag);
+        }
         cFlag_8bit_overflow(result);
         // handle carry (above just set flags..)
         result = (short) checkAndSetOverflowVal8bit(result);
@@ -792,7 +797,15 @@ public class CPU {
         int result = aValue + addressValue + carryFlag;
 
         setNFlag(false);
-        hFlag_8bit_overflow(aValue, addressValue + carryFlag);
+        if (carryFlag == 0) {
+            hFlag_8bit_overflow(aValue, addressValue);
+        } else {
+            // we need to check again, because the cpu considers the addition 1 by 1.
+            // so we need to check if either calculation by themselves cause a half carry
+            hFlag_8bit_overflow(aValue, addressValue);
+            // if h is still not on, do the last check (needed since the checks can reset to false)
+            if (!hFlagOn()) hFlag_8bit_overflow(aValue + addressValue, carryFlag);
+        }
         cFlag_8bit_overflow(result);
 
         result = (short) checkAndSetOverflowVal8bit(result);
@@ -810,7 +823,12 @@ public class CPU {
         int result = aValue + addressValue + carryFlag;
 
         setNFlag(false);
-        hFlag_8bit_overflow(aValue, addressValue + carryFlag);
+        if (carryFlag == 0) {
+            hFlag_8bit_overflow(aValue, addressValue);
+        } else {
+            hFlag_8bit_overflow(aValue, addressValue);
+            if (!hFlagOn()) hFlag_8bit_overflow(aValue + addressValue, carryFlag);
+        }
         cFlag_8bit_overflow(result);
 
         result = (short) checkAndSetOverflowVal8bit(result);
@@ -905,8 +923,13 @@ public class CPU {
         int result = aValue - r8Value - carryFlag;
 
         setNFlag(true);
-        hFlag_8bit_borrow(aValue, r8Value - carryFlag);
-        cFlag_8bit_borrow(aValue, r8Value - carryFlag);
+        if (carryFlag == 0) {
+            hFlag_8bit_borrow(aValue, r8Value);
+        } else {
+            hFlag_8bit_borrow(aValue, r8Value);
+            if (!hFlagOn()) hFlag_8bit_borrow(aValue - r8Value, carryFlag);
+        }
+        cFlag_8bit_borrow(result);
 
         result = checkAndSetUnderflowVal8bit(result);
         zFlag_8bit_overflow_or_borrow(result);
@@ -923,8 +946,13 @@ public class CPU {
         int result = aValue - addressValue - carryFlag;
 
         setNFlag(true);
-        hFlag_8bit_borrow(aValue, addressValue - carryFlag);
-        cFlag_8bit_borrow(aValue, addressValue - carryFlag);
+        if (carryFlag == 0) {
+            hFlag_8bit_borrow(aValue, addressValue);
+        } else {
+            hFlag_8bit_borrow(aValue, addressValue);
+            if (!hFlagOn()) hFlag_8bit_borrow(aValue - addressValue, carryFlag);
+        }
+        cFlag_8bit_borrow(result);
 
         result = checkAndSetUnderflowVal8bit(result);
         zFlag_8bit_overflow_or_borrow(result);
@@ -941,8 +969,13 @@ public class CPU {
         int result = aValue - addressValue - carryFlag;
 
         setNFlag(true);
-        hFlag_8bit_borrow(aValue, addressValue - carryFlag);
-        cFlag_8bit_borrow(aValue, addressValue - carryFlag);
+        if (carryFlag == 0) {
+            hFlag_8bit_borrow(aValue, addressValue);
+        } else {
+            hFlag_8bit_borrow(aValue, addressValue);
+            if (!hFlagOn()) hFlag_8bit_borrow(aValue - addressValue, carryFlag);
+        }
+        cFlag_8bit_borrow(result);
 
         result = checkAndSetUnderflowVal8bit(result);
         zFlag_8bit_overflow_or_borrow(result);
@@ -2530,9 +2563,8 @@ public class CPU {
         setHFlag(subtractorLowerNibble > valueLowerNibble);
     }
 
-    private void cFlag_8bit_borrow(final int value, final int subtractor) {
-        final int lowerByte = value & 0xFF; // ensure we only deal with first 8 bits
-        setCFlag(subtractor > lowerByte);
+    private void cFlag_8bit_borrow(final int result) {
+        setCFlag(result < 0);
     }
 
       private boolean cFlag_16bit_overflow(final int result) {
