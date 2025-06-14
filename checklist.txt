@@ -129,4 +129,9 @@ NOTE:
 Test 06 loads [DONE] PASS
 Test 07, jr,jp,... [DONE] PASS
 Test 03, op sp,hl  [DONE] PASS
-Test 04, op r,imm  [in progress]
+Test 04, op r,imm  [DONE] PASS
+
+Re-check all our tests still pass (nothing broken) [DONE] 1,3,4,6,7 tests passing
+
+Test 08 misc   [DONE] PASS
+Test 09 op r,r [DONE] PASS

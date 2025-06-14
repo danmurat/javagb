@@ -10,7 +10,7 @@ public class Run {
         System.out.println("Welcom to Java gb");
 
         // -- SET UP
-        Memory memory = new Memory("individual/04-op r,imm.gb");
+        Memory memory = new Memory("individual/09-op r,r.gb");
         CPU cpu = new CPU(memory);
         memory.setCPU(cpu);
         //memory.hexDumpRomContents();

@@ -1140,9 +1140,7 @@ public class CPU {
         zFlag_8bit_overflow_or_borrow(result);
         setNFlag(true);
         hFlag_8bit_borrow(aValue, r8Value);
-        if (r8Value > aValue) {
-            setCFlag(true);
-        }
+        setCFlag(r8Value > aValue);
 
         totalMCycles += 1;
         PC += 1;
@@ -1156,9 +1154,7 @@ public class CPU {
         zFlag_8bit_overflow_or_borrow(result);
         setNFlag(true);
         hFlag_8bit_borrow(aValue, addressValue);
-        if (addressValue > aValue) {
-            setCFlag(true);
-        }
+        setCFlag(addressValue > aValue);
 
         totalMCycles += 2;
         PC += 1;
@@ -2083,21 +2079,23 @@ public class CPU {
 
     // SLA/SRA (Shift Left/Right Arithmetics)
     // These are shifts that preserve the sign bit (most significant)
+    /*
+    These are failing the 09 test.
+    http://marc.rawer.de/Gameboy/Docs/GBCPUman.pdf
+
+    This says that SLA must have the least significant bit set to 0.
+
+    BUG: we were using rotateLeft/Right() methods in the sla/sra instead of the shiftLeft/Right()
+     */
 
     private void sla_r8(char register) {
         final int regValue = getr8(register);
-        final int leftShiftValue = rotateLeft(regValue);
+        final int leftShiftValue = shiftLeft(regValue);
 
-        // bit 9 now holds the sign value of original regValue, so we copy to 8th bit
+        // bit 9 now holds the sign value of original regValue
         final int cFlagValue = leftShiftValue >> 8;
-        int newRegValue;
-        if (cFlagValue == 1) {
-            // or into 8th bit
-            newRegValue = (leftShiftValue & 0xFF) | (cFlagValue << 7);
-        } else {
-            // and into 8th bit (can't "or" 0 in!)
-            newRegValue = (leftShiftValue & 0xFF) & (cFlagValue << 7);
-        }
+        // when shifting left, the least sig bit should be 0 anyway
+        final int newRegValue = leftShiftValue & 0xFF;
 
         setr8(register, newRegValue);
         rotationFlagSets(cFlagValue, newRegValue);
@@ -2109,15 +2107,10 @@ public class CPU {
     // same as above but accesses HL byte val
     private void sla_phl() {
         final int hlByteValue = memory.readByte(HL);
-        final int leftShiftValue = rotateLeft(hlByteValue);
+        final int leftShiftValue = shiftLeft(hlByteValue);
 
         final int cFlagValue = leftShiftValue >> 8;
-        int newHlByteValue;
-        if (cFlagValue == 1) {
-            newHlByteValue = (leftShiftValue & 0xFF) | (cFlagValue << 7);
-        } else {
-            newHlByteValue = (leftShiftValue & 0xFF) & (cFlagValue << 7);
-        }
+        final int newHlByteValue = leftShiftValue & 0xFF;
 
         memory.writeByte(HL, (short) newHlByteValue);
         rotationFlagSets(cFlagValue, newHlByteValue);
@@ -2128,7 +2121,7 @@ public class CPU {
 
     private void sra_r8(char register) {
         final int regValue = getr8(register);
-        final int rightShiftValue = rotateRight(regValue);
+        final int rightShiftValue = shiftRight(regValue);
 
         // out of 9bits, bit 1 holds cFlag and bit 8 holds previous sign value, copy 8 into 9
         final int cFlagValue = rightShiftValue & 0x01;
@@ -2152,7 +2145,7 @@ public class CPU {
     // same as above for [HL]
     private void sra_phl() {
         final int hlByteValue = memory.readByte(HL);
-        final int rightShiftValue = rotateRight(hlByteValue);
+        final int rightShiftValue = shiftRight(hlByteValue);
 
         final int cFlagValue = rightShiftValue & 0x01;
         final int signValue = (rightShiftValue & 0xFF) >> 7;
@@ -2691,7 +2684,7 @@ public class CPU {
         final int cFlagValue = cFlagOn() ? 1 : 0;
 
         // combine in correct bit places
-        final int combine = (cFlagValue << 9) | value;
+        final int combine = (cFlagValue << 8) | value;
         final int leftRotateResult = (combine << 1) & 0b111111111; // & ensures we only keep the 9 bits (we don't want 10)
 
         final int cFlagResult = leftRotateResult >> 8;
