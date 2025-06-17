@@ -1,62 +1,85 @@
+package j.gb;
+
+import com.badlogic.gdx.ApplicationAdapter;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.utils.ScreenUtils;
+
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 
-/**
- * Will run the emulation
- */
-public class Run {
-    public static void main(String[] args) throws IOException {
-        System.out.println("Welcom to Java gb");
+/** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
+public class Run extends ApplicationAdapter {
+    private SpriteBatch batch;
+    private Texture image;
 
-        // -- SET UP
-        Memory memory = new Memory("individual/01-special.gb");
-        CPU cpu = new CPU(memory);
-        memory.setCPU(cpu);
-        //memory.hexDumpRomContents();
+    private Memory memory;
+    private CPU cpu;
 
+    /**
+     * Create "loads" everything for us when game starts
+     */
+    @Override
+    public void create() {
+        batch = new SpriteBatch();
+        image = new Texture("libgdx.png");
 
-        run(cpu, memory);
+        try {
+            memory = new Memory("individual/01-special.gb");
+            cpu = new CPU(memory);
+            memory.setCPU(cpu);
+        } catch (IOException e) {
+            System.out.println("IO Error: " + e.getMessage());
+        }
     }
 
     /**
-     * Sets up and runs gameboy game
+     * This is basically the main loop
      */
-    public static void run(CPU cpu, Memory memory) throws IOException {
+    @Override
+    public void render() {
+        runInstructions();
 
-        /*
-        Von nueman, fetch decode execute cycle.
+        ScreenUtils.clear(0.15f, 0.15f, 0.2f, 1f);
+        batch.begin();
+        batch.draw(image, 140, 210);
+        batch.end();
 
-        PC starts at 0x100. Reads memory to get instruction, executes, and PC subsequently updates
-        as this runs. This is continuously
+    }
 
-        TODO: we will need to set up debugging helpers here to see how correct our implementation is
-        remember we kind of need to implement one of the I/O ports for debugging so we see outputs
-         */
-        int executionAmount = 0;
+    @Override
+    public void dispose() {
+        batch.dispose();
+        image.dispose();
+    }
 
-        //while (executionAmount < 1300000) {
-        while (true) {
-            //System.out.print(executionAmount + ": ");
-            //cpu.printPC();
+    /**
+     * This will run all required instructions within a frame (At least that's the plan)
+     */
+    private void runInstructions() {
+        final int maxCycleCount = 4194304; // the cycle rate per second
+
+        while (cpu.getTotalMCycles() < maxCycleCount) {
             //logState(cpu); // every instr
             cpu.executeInstruction(); // handles the above comment
+            printOutputPort();
+        }
+        cpu.resetTotalMCycles();
+    }
 
-            //cpu.printOP();
-            //System.out.println(" Instruction=" + getInstructionName(cpu.getOP()));
-
-            // text output port (for the cpu test results)
-            if (memory.readByte(0xFF02) == 0x81) {
-                System.out.print((char) memory.readByte(0xFF01));
-                memory.writeByte(0xFF02, (short) 0x00);
-            }
-
-            //executionAmount++;
+    // text output port (for the cpu test results)
+    private void printOutputPort() {
+        if (memory.readByte(0xFF02) == 0x81) {
+            System.out.print((char) memory.readByte(0xFF01));
+            memory.writeByte(0xFF02, (short) 0x00);
         }
     }
 
     // log
-    private static void logState(CPU cpu) {
+    private void logState(CPU cpu) {
         String fileName = "log.txt";
         byte a = (byte) cpu.get8bitReg('A');
         byte b = (byte) cpu.get8bitReg('B');
@@ -71,7 +94,7 @@ public class Run {
         int[] pcmem = cpu.getPCmem();
 
         String logLine = String.format("A:%02x F:%02x B:%02x C:%02x D:%02x E:%02x H:%02x L:%02x SP:%04x PC:%04x PCMEM:%02x,%02x,%02x,%02x",
-                a, f, b, c, d, e, h, l, sp, pc, pcmem[0], pcmem[1], pcmem[2], pcmem[3]);
+            a, f, b, c, d, e, h, l, sp, pc, pcmem[0], pcmem[1], pcmem[2], pcmem[3]);
 
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName, true))) {
             writer.write(logLine);
@@ -83,7 +106,7 @@ public class Run {
     }
 
     // debugging assistance
-    private static String getInstructionName(int opcode) {
+    private String getInstructionName(int opcode) {
         return switch (opcode) {
             case 0x00 -> "NOP";
             case 0x01 -> "LD BC,nn";
@@ -288,8 +311,8 @@ public class Run {
             case 0xBD -> "CP L";
             case 0xBE -> "CP (HL)";
             case 0xBF -> "CP A";
-            
-            
+
+
             case 0xC0 -> "RET NZ";
             case 0xC1 -> "POP BC";
             case 0xC2 -> "JP NZ,nn";

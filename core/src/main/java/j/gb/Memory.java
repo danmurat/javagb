@@ -1,3 +1,5 @@
+package j.gb;
+
 import java.io.FileInputStream;
 import java.io.IOException;
 
@@ -11,7 +13,7 @@ import java.io.IOException;
  */
 public class Memory
 {
-    private static final String ROM_PATH = "roms/";
+    private static final String ABSOLUTE_ROM_PATH = "/Users/gohan/uni/yr2/javagb/roms/";
     private CPU cpu;
 
                                         // TODO: change back to 0x8000. But the rom files are bigger than this??
@@ -456,7 +458,7 @@ public class Memory
      */
     private void loadRom(final String romName) throws IOException
     {
-        final FileInputStream romFile = new FileInputStream(ROM_PATH + romName);
+        final FileInputStream romFile = new FileInputStream(ABSOLUTE_ROM_PATH + romName);
         int addressCounter = 0;
         while (romFile.available() > 0)
         {

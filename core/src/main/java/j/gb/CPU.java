@@ -1,3 +1,5 @@
+package j.gb;
+
 /**
  * Represents the game boy CPU.
  * <br>
@@ -112,6 +114,14 @@ public class CPU {
             mem[i] = memory.readByte(PC + i);
         }
         return mem;
+    }
+    public int getTotalMCycles() {
+        return totalMCycles;
+    }
+    // once we've finished 1 second, the idea is we render the screen, then reset M cycles, so that we know when to stop
+    // again on next frame
+    public void resetTotalMCycles() {
+        totalMCycles = 0;
     }
 
     /**
