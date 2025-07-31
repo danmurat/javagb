@@ -118,6 +118,9 @@ public class CPU {
     public int getTotalMCycles() {
         return totalMCycles;
     }
+    public void setTotalMCycles(int mCycles) {
+        totalMCycles = mCycles;
+    }
     // once we've finished 1 second, the idea is we render the screen, then reset M cycles, so that we know when to stop
     // again on next frame
     public void resetTotalMCycles() {

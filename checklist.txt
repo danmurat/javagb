@@ -139,3 +139,14 @@ Test 10 bit op    [DONE] PASS
 Test 11 op a,(hl) [DONE] PASS
 
 Everything (but 2) passes! We'll get started on PPU.
+
+
+July 2nd:
+- Figure out how to determine if tile in tilemap is window or not [on hold]
+- Figure out sprite FIFO. [to do]
+
+July 31st:
+- We've figured out how to finally get pixmap working and outputting our individual 160x144 pixels to libgdx screen.
+- We can output some of the lcd! though ppu not fully implemented or working.
+
+todo: Get FIFO working!! Why do we have a static screen of patterns?

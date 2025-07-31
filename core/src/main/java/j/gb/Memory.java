@@ -13,7 +13,7 @@ import java.io.IOException;
  */
 public class Memory
 {
-    private static final String ABSOLUTE_ROM_PATH = "/Users/gohan/uni/yr2/javagb/roms/";
+    private static final String ABSOLUTE_ROM_PATH = "/Users/gohan/Documents/projects/javagb/roms/";
     private CPU cpu;
 
                                         // TODO: change back to 0x8000. But the rom files are bigger than this??
@@ -26,7 +26,7 @@ public class Memory
 
     private final short[] echo = new short[0x1E00];
 
-    private final short[] spriteTable = new short[0xA0];
+    private int[] spriteTable = new int[0xA0]; // re-assigned in DMA transfer
     private final short[] ioMem = new short[0x80]; // TODO: currenlty throw an error when IO section (readByte()) doesn't find anything, otherwise, use this..
 
     private final short[] highRam = new short[0x80]; // TODO: the size may be wrong for this (0x7F instead)
@@ -129,7 +129,7 @@ public class Memory
         }
         else if (0xFE00 <= address && address <= 0xFE9F) // sprite attribute table
         {
-            return spriteTable[address - 0xFE00];
+            return (short) spriteTable[address - 0xFE00];
         }
        else if (0xFEA0 <= address && address <= 0xFEFF) // not usable ...
         {
@@ -267,7 +267,7 @@ public class Memory
                 case 0xFF43 -> SCX = value;
                 case 0xFF44 -> LY = 0x00; // ly is also reset
                 case 0xFF45 -> LYC = value;
-                case 0xFF46 -> DMA = value;
+                case 0xFF46 -> dmaTransfer(value);
                 case 0xFF47 -> BGP = value;
                 case 0xFF48 -> OBP0 = value;
                 case 0xFF49 -> OBP1 = value;
@@ -403,6 +403,23 @@ public class Memory
         } else {
             return num;
         }
+    }
+
+    /**
+     * DMA transfer. To load memory contents into OAM when xFF46 is written to
+     *
+     * TODO: this can only be done during VBlank/HBlank!!
+     */
+    public void dmaTransfer(final int xx) {
+        // we take all the contents specifed by the xx in memory
+        final int[] memToBeLoaded = new int[0xA0];
+        final int higherByteAddress = xx << 8;
+        for (int i = 0x00; i < 0x9F; i++) {
+            memToBeLoaded[i] = readByte(higherByteAddress | i); // gives us correct addr to access
+        }
+
+        spriteTable = memToBeLoaded;
+        cpu.setTotalMCycles(cpu.getTotalMCycles() + 160); // dma transf takes 160 m cycles
     }
 
     /**

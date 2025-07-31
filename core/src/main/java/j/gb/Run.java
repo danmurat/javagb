@@ -2,10 +2,13 @@ package j.gb;
 
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.graphics.GL20;
-import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.*;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.ScreenUtils;
+
+import com.badlogic.gdx.utils.viewport.FitViewport;
+import com.badlogic.gdx.utils.viewport.Viewport;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
@@ -13,24 +16,37 @@ import java.io.IOException;
 
 /** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
 public class Run extends ApplicationAdapter {
+    private static final int WORLD_WIDTH = 160;
+    private static final int WORLD_HEIGHT = 144;
+
     private SpriteBatch batch;
-    private Texture image;
+    private OrthographicCamera camera;
+    private Viewport viewport;
+
+    // lcd screen representation
+    private Pixmap pixmap;
+    private Texture texture;
 
     private Memory memory;
     private CPU cpu;
+    private PPU ppu;
+    private int[][] lcd;
+
 
     /**
      * Create "loads" everything for us when game starts
      */
     @Override
     public void create() {
+        pixmap = new Pixmap(WORLD_WIDTH, WORLD_HEIGHT, Pixmap.Format.RGBA8888);
+        texture = new Texture(WORLD_WIDTH, WORLD_HEIGHT, Pixmap.Format.RGBA8888);
         batch = new SpriteBatch();
-        image = new Texture("libgdx.png");
 
         try {
-            memory = new Memory("individual/01-special.gb");
+            memory = new Memory("individual/11-op a,(hl).gb");
             cpu = new CPU(memory);
             memory.setCPU(cpu);
+            ppu = new PPU(memory);
         } catch (IOException e) {
             System.out.println("IO Error: " + e.getMessage());
         }
@@ -41,19 +57,55 @@ public class Run extends ApplicationAdapter {
      */
     @Override
     public void render() {
-        runInstructions();
 
-        ScreenUtils.clear(0.15f, 0.15f, 0.2f, 1f);
+        runInstructions();
+        lcd = ppu.renderScreen();
+
+        /*
+        This is finally showing us a SCREEN!!!
+
+        So what we're doing is this:
+        - create pixmap, in-memory pixel representation of some height/width
+        - assign each pixel a colour value we retrieve from lcd (gb rendering) (out of the 0-3 vals)
+        - gets put into texture (which loads into gpu memory)
+        - texture is put into batch which decodes/geometrises the image we put in for OpenGL to do its thing.
+
+        The lcd screen is not implemented yet, so we're just seeing some random static image (with some patterns).
+        I need to investigate what's actually happening.
+
+        Then we can finish properly implementing the ppu so stuff appears properly on the screen!
+         */
+       for (int y = 0; y < WORLD_HEIGHT; y++) {
+            for (int x = 0; x < WORLD_WIDTH; x++) {
+                try {
+                    pixmap.setColor(get2bitColour(lcd[y][x]));
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+                pixmap.drawPixel(x, y);
+            }
+        }
+
+       ScreenUtils.clear(0.15f, 0.15f, 0.2f, 1f);
+        /*
+        Pixmap is 'CPU' representation? and texture is GPU. Not completely sure what this means or it's implications.
+        the texture will contain ref to pixmap and pixmap should update itself.
+         */
+        texture.draw(pixmap, 0, 0);
+
         batch.begin();
-        batch.draw(image, 140, 210);
+        batch.draw(texture, 0, 0, WORLD_WIDTH * 4, WORLD_HEIGHT * 4);
         batch.end();
+        /*
+        So pixmap is held by texture, and texture held by batch?
+         */
 
     }
 
     @Override
     public void dispose() {
         batch.dispose();
-        image.dispose();
+        texture.dispose();
     }
 
     /**
@@ -76,6 +128,18 @@ public class Run extends ApplicationAdapter {
             System.out.print((char) memory.readByte(0xFF01));
             memory.writeByte(0xFF02, (short) 0x00);
         }
+    }
+
+
+    // decodes and returns the correct colour out of 0-3
+    private Color get2bitColour(int pixelValue) throws Exception {
+        return switch (pixelValue) {
+            case 0 -> new Color(0.9f,1f,0.9f,1);
+            case 1 -> new Color(0.7f, 0.9f, 0.7f, 1);
+            case 2 -> new Color(0.4f, 0.7f, 0.4f, 1);
+            case 3 -> new Color(0.1f, 0.3f, 0.1f, 1);
+            default -> throw new Exception("LCD pixel value out of range?? Should be 0-3. Value was " + pixelValue);
+        };
     }
 
     // log
