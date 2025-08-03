@@ -149,4 +149,14 @@ July 31st:
 - We've figured out how to finally get pixmap working and outputting our individual 160x144 pixels to libgdx screen.
 - We can output some of the lcd! though ppu not fully implemented or working.
 
-todo: Get FIFO working!! Why do we have a static screen of patterns?
+
+Aug 3rd:
+We realised the patterns were repeating the first character of the filename. It turned out we were not computing the
+'tile number' properly in PPU.java 284, which gets the x and y of the tile and attempts to number it as if you were counting
+left to right, top to bottom.
+This then outputted the filename completely, with a 'passed' as we pass the test rom. But only the top half of all text
+appeared. After computing and displaying the tilemap, computing all VRAM, then exploring how exactly we're accessing
+specific rows; we found that we computed the row we wanted to retrieve (which was out of 8), then incrementing the access
+address by our computed value. But a tile in VRAM consists of 16 addresses, since gb takes 2 addresses and combines their
+values to make the 2bit result. Without muliplying our computed row by 2, we were only accessing half the tile!
+These are now fixed and all individual test roms output their text perfectly.

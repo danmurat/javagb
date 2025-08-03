@@ -71,7 +71,8 @@ public class PPU {
             for (int dots = 0; dots < 160; dots++) { // TODO: change back to 460!
                 // we'll work on mode 3 for the time being.. Get all the pixels drawn properly.
 
-                int xPos = 0; // x of the current scanline
+                // for now just follow the dots. Will be changed once we add back 460 dots.
+                int xPos = dots; // x of the current scanline
 
                 // only accepts when empty
                 if (bgFIFO.isEmpty()) {
@@ -86,6 +87,17 @@ public class PPU {
                 So the scanline and dots are just between the lcd screen sizes (not how they should be!).
                  */
                 screen[scanline][dots] = bgFIFO.pop();
+
+                // so at the start of each tile, we'll draw a black pixel to indicate the start of it in
+                // the middle of the screen.
+                // TODO: remove once not needed
+                if (scanline % 8 == 0) {
+                    screen[scanline][80] = 3;
+                }
+                // same across. So we have a good idea what text represents what tile on screen.
+                if (dots % 8 == 0) {
+                    screen[72][dots] = 3;
+                }
             }
         }
 
@@ -97,6 +109,7 @@ public class PPU {
 
      Scanline x/y positions so we know our position relative to what should be shown from the tileMap?
      This should help us determine which tiles to select (then push the row of 8 bits into queue)
+     TODO: scanlineX is never off screen!! we're just passing vals within the screen!
      */
     private ArrayDeque<Integer> pixelFetcher(final int scanlineXPos, final int scanlineYPos) {
         // row of 8 bg/w pixels
@@ -267,7 +280,8 @@ public class PPU {
 
         int basePointer;
         final int correctedTileYPos = tileYPos / 8; // gives us the correct Y tile (0-31)
-        final int tileMapNumber = tileXPos * correctedTileYPos; // tells us which tile in the tile map we're on
+        // tilyY * 32 will give us the correct number for the row we're on, added by the column.
+        final int tileMapNumber = tileXPos + (correctedTileYPos * 32); // tells us which tile in the tile map we're on
         final int correctTileRow = tileYPos % 8; // gives us the row in a specific tile
 
         // TODO: i'm not sure if we check this once, or that we check through each iteration?
@@ -282,8 +296,8 @@ public class PPU {
             to access correct addr for a tile, we multiply by 16. (tile 2 would = 0x10-0x1F, tile 3 = 0x20-0x2F, etc)
              */
             final int vramTileNumber = memory.readByte(startAddress + tileMapNumber) * 16;
-            // tileRow = 0-7, so we access the correct row of the tile too.
-            final int tileRowAddress = basePointer + vramTileNumber + correctTileRow;
+            // tileRow = 0-7, * 2, so we access the correct row of the tile that's stored in mem and spans all 16 addresses.
+            final int tileRowAddress = basePointer + vramTileNumber + (correctTileRow * 2);
             tileRow = computeTileRow(tileRowAddress);
         } else {
             basePointer = BASE_POINTER_9000;
@@ -291,7 +305,7 @@ public class PPU {
             final int vramTileNumber = memory.readByte(startAddress + tileMapNumber);
             // get signed value to then use from address $9000.
             final int signedVramTileNumber = memory.getTwosCompliment(vramTileNumber) * 16;
-            final int tileAndRowAddress = basePointer + signedVramTileNumber + correctTileRow;
+            final int tileAndRowAddress = basePointer + signedVramTileNumber + (correctTileRow * 2);
             tileRow = computeTileRow(tileAndRowAddress);
         }
 
@@ -503,4 +517,59 @@ public class PPU {
         return memory.readByte(0xFF49);
     }
 
+
+    // --- Debugging methods
+
+    /**
+     * Idea is we are able to visualise the tile map on our screen. We can see what's available and
+     * compare it to what's being displayed.
+     *
+     * Will hold 2d array, just like the lcd screen. This will hold 256 x 256 pixels (32x32 tile map).
+     */
+    public int[][] computeTileMap(final boolean map2) {
+        final int[][] tileMap = new int[256][256];
+        int location = 0x9800;
+        if (map2) location = 0x9C00;
+
+        // loop through mem, but go through a single row at a time.
+
+        for (int row = 0; row < 256; row++) {
+            for (int col = 0; col < 32; col++) {
+                int[] tileRow = getTileRow(location, col, row);
+                // then fill tilemap array with data
+                for (int i = 0; i < tileRow.length; i++) {
+                    // col*8 + i properly places a byte of data for all 32 tiles wide
+                    tileMap[row][(col * 8) + i] = tileRow[i];
+                }
+
+                // TODO: remove
+                // here to distinguish tiles with black dots with black dot/**/s
+                if (row % 8 == 0) tileMap[row][col*8] = 3;
+            }
+        }
+
+        return tileMap;
+    }
+
+    /**
+     * We can't seem to find the bottom half of our text in our tilemap. We'll compute all the tiles
+     * and their values we find in vram to look for these missing tiles.
+     */
+    public int[][][] computeAllVram() {
+        final int[][][] vramTileData = new int[384][8][8];
+        // looping through total num of tiles (which are all in $8000-97FF) (each tile = 16bytes long)
+        for (int i = 0; i < 384; i++) {
+            final int[][] singleTileData = new int[8][8];
+            for (int j = 0; j < 16; j += 2) {
+                /* j += 2 since computTileRow() will get the current address + the next address. So must iterate 2.
+                   0x8000 + (i * 16) + j will route us to the correct tileRow
+                   (i*16) will return the start of the specific tile address (since each tile consists of 16 addresses)
+                   + j for the correct row. */
+                singleTileData[j / 2] = computeTileRow(0x8000 + (i * 16) + j);
+            }
+            vramTileData[i] = singleTileData;
+        }
+
+        return vramTileData;
+    }
 }

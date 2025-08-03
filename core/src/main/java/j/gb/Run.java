@@ -7,30 +7,32 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.ScreenUtils;
 
-import com.badlogic.gdx.utils.viewport.FitViewport;
-import com.badlogic.gdx.utils.viewport.Viewport;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Arrays;
 
 /** {@link com.badlogic.gdx.ApplicationListener} implementation shared by all platforms. */
 public class Run extends ApplicationAdapter {
     private static final int WORLD_WIDTH = 160;
     private static final int WORLD_HEIGHT = 144;
+    private static int renderCounter = 0;
 
     private SpriteBatch batch;
-    private OrthographicCamera camera;
-    private Viewport viewport;
 
     // lcd screen representation
     private Pixmap pixmap;
+    private Pixmap pmapTileMap1;
+    private Pixmap pmapTileMap2;
     private Texture texture;
 
     private Memory memory;
     private CPU cpu;
     private PPU ppu;
     private int[][] lcd;
+    private int[][] tilemap1;
+    private int[][] tilemap2;
 
 
     /**
@@ -39,11 +41,13 @@ public class Run extends ApplicationAdapter {
     @Override
     public void create() {
         pixmap = new Pixmap(WORLD_WIDTH, WORLD_HEIGHT, Pixmap.Format.RGBA8888);
-        texture = new Texture(WORLD_WIDTH, WORLD_HEIGHT, Pixmap.Format.RGBA8888);
+        pmapTileMap1 = new Pixmap(256, 256, Pixmap.Format.RGBA8888);
+        pmapTileMap2 = new Pixmap(256, 256, Pixmap.Format.RGBA8888);
+        texture = new Texture(256, 256, Pixmap.Format.RGBA8888);
         batch = new SpriteBatch();
 
         try {
-            memory = new Memory("individual/11-op a,(hl).gb");
+            memory = new Memory("individual/01-special.gb");
             cpu = new CPU(memory);
             memory.setCPU(cpu);
             ppu = new PPU(memory);
@@ -60,6 +64,21 @@ public class Run extends ApplicationAdapter {
 
         runInstructions();
         lcd = ppu.renderScreen();
+        tilemap1 = ppu.computeTileMap(false);
+        tilemap2 = ppu.computeTileMap(true);
+
+        /*
+        We've fixed the half text issue. This shouldn't be needed anymore but will keep commented out incase
+        we discover more bugs.
+
+        if (renderCounter == 1) {
+            final int[][][] vramData = ppu.computeAllVram();
+            //logVram(vramData);
+            //System.out.println(Arrays.deepToString(ppu.computeAllVram()));
+        }
+*/
+
+        renderCounter++;
 
         /*
         This is finally showing us a SCREEN!!!
@@ -86,12 +105,26 @@ public class Run extends ApplicationAdapter {
             }
         }
 
+       // filling tilemaps
+        for (int y = 0; y < 256; y++) {
+            for (int x = 0; x < 256; x++) {
+                try {
+                    pmapTileMap1.setColor(get2bitColour(tilemap1[y][x]));
+                    pmapTileMap1.drawPixel(x, y);
+                    pmapTileMap2.setColor(get2bitColour(tilemap2[y][x]));
+                    pmapTileMap2.drawPixel(x, y);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+
        ScreenUtils.clear(0.15f, 0.15f, 0.2f, 1f);
         /*
         Pixmap is 'CPU' representation? and texture is GPU. Not completely sure what this means or it's implications.
         the texture will contain ref to pixmap and pixmap should update itself.
          */
-        texture.draw(pixmap, 0, 0);
+        texture.draw(pmapTileMap1, 0, 0);
 
         batch.begin();
         batch.draw(texture, 0, 0, WORLD_WIDTH * 4, WORLD_HEIGHT * 4);
@@ -106,6 +139,10 @@ public class Run extends ApplicationAdapter {
     public void dispose() {
         batch.dispose();
         texture.dispose();
+        // stop mem leaks after quitting
+        pixmap.dispose();
+        pmapTileMap1.dispose();
+        pmapTileMap2.dispose();
     }
 
     /**
@@ -163,6 +200,27 @@ public class Run extends ApplicationAdapter {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName, true))) {
             writer.write(logLine);
             writer.newLine();
+            writer.flush();
+        } catch (IOException err) {
+            err.printStackTrace(); // for now..
+        }
+    }
+
+    private void logVram(final int[][][] vramTileData) {
+        String filename = "vram.txt";
+
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filename, true))) {
+            for (int i = 0; i < vramTileData.length; i++) {
+                for (int j = 0; j < vramTileData[i].length; j++) {
+                    for (int k = 0; k < vramTileData[i][j].length; k++) {
+                        writer.write(vramTileData[i][j][k] + " ");
+                    }
+                    writer.newLine();
+                }
+                writer.newLine();
+                writer.newLine();
+
+            }
             writer.flush();
         } catch (IOException err) {
             err.printStackTrace(); // for now..

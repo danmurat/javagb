@@ -64,6 +64,7 @@ public class Memory
     {
         //this.cpu = cpu;
         loadRom(romName); // romData filled
+       // hexDumpRomContents();
     }
 
     /**

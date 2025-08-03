@@ -4,14 +4,14 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="3d99bb93-0256-4e75-8212-af97d2135b8d" name="Changes" comment="Migration to libGDX project setup">
+    <list default="true" id="3d99bb93-0256-4e75-8212-af97d2135b8d" name="Changes" comment="Basic screen rendering working. &#10;&#10;- Now connects to our PPU to produce a visable image on computer.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/assets/assets.txt" beforeDir="false" afterPath="$PROJECT_DIR$/assets/assets.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/checklist.txt" beforeDir="false" afterPath="$PROJECT_DIR$/checklist.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/CPU.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/CPU.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/Memory.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/Memory.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/Run.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/Run.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gradlew.bat" beforeDir="false" afterPath="$PROJECT_DIR$/gradlew.bat" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -186,7 +186,7 @@
       <workItem from="1751288844703" duration="7079000" />
       <workItem from="1751455289025" duration="9854000" />
       <workItem from="1751557374783" duration="7081000" />
-      <workItem from="1753534750625" duration="11616000" />
+      <workItem from="1753534750625" duration="38432000" />
     </task>
     <task id="LOCAL-00001" summary="Migration to libGDX project setup">
       <option name="closed" value="true" />
@@ -196,7 +196,15 @@
       <option name="project" value="LOCAL" />
       <updated>1750162343624</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="Basic screen rendering working. &#10;&#10;- Now connects to our PPU to produce a visable image on computer.">
+      <option name="closed" value="true" />
+      <created>1753979874245</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1753979874245</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -218,7 +226,21 @@
       <path value="$PROJECT_DIR$/../yr2/javagb" />
     </ignored-roots>
     <MESSAGE value="Migration to libGDX project setup" />
-    <option name="LAST_COMMIT_MESSAGE" value="Migration to libGDX project setup" />
+    <MESSAGE value="Basic screen rendering working. &#10;&#10;Now connects to our PPU to produce a visable image on computer." />
+    <MESSAGE value="Basic screen rendering working. &#10;&#10;- Now connects to our PPU to produce a visable image on computer." />
+    <option name="LAST_COMMIT_MESSAGE" value="Basic screen rendering working. &#10;&#10;- Now connects to our PPU to produce a visable image on computer." />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="java-line">
+          <condition expression="i == 34" language="JAVA" />
+          <url>file://$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java</url>
+          <line>567</line>
+          <option name="timeStamp" value="17" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
