@@ -17,7 +17,13 @@ import java.util.Arrays;
 public class Run extends ApplicationAdapter {
     private static final int WORLD_WIDTH = 160;
     private static final int WORLD_HEIGHT = 144;
+    private static final int CLOCK_SPEED = 4194304; // ticks per second (cpu internal clock)
+
+    // trialing out div by 60, since we're basically running 1 frame per clock cycle.
+    private static final int M_CLOCK_SPEED = (CLOCK_SPEED / 4); // in machine cycles
+
     private static int renderCounter = 0;
+    private static int instructionCounter = 0; // help debugging cpu
 
     private SpriteBatch batch;
 
@@ -30,6 +36,7 @@ public class Run extends ApplicationAdapter {
     private Memory memory;
     private CPU cpu;
     private PPU ppu;
+    private MBC mbc;
     private int[][] lcd;
     private int[][] tilemap1;
     private int[][] tilemap2;
@@ -43,14 +50,24 @@ public class Run extends ApplicationAdapter {
         pixmap = new Pixmap(WORLD_WIDTH, WORLD_HEIGHT, Pixmap.Format.RGBA8888);
         pmapTileMap1 = new Pixmap(256, 256, Pixmap.Format.RGBA8888);
         pmapTileMap2 = new Pixmap(256, 256, Pixmap.Format.RGBA8888);
-        texture = new Texture(256, 256, Pixmap.Format.RGBA8888);
+        texture = new Texture(WORLD_WIDTH, WORLD_HEIGHT, Pixmap.Format.RGBA8888);
         batch = new SpriteBatch();
 
         try {
-            memory = new Memory("individual/01-special.gb");
+            //memory = new Memory("boot.bin");
+            memory = new Memory("cpu_instrs.gb");
+             /* NOTE: individual roms will throw exceptions now. (PC out of bounds)
+                This is due to these roms identifying as MBC1, even
+                when they still only have 2 banks (can fit in gb)
+              */
+            memory.loadLogo(); // for nintendo logo debugging
+            //memory.writeByte(0x100, (short) 0); // DUBUGGING BOOT ROM PURPOSES (so that we don't execute the test rom)
             cpu = new CPU(memory);
             memory.setCPU(cpu);
             ppu = new PPU(memory);
+            //mbc = new MBC();
+            //memory.setMBC(mbc);
+            System.out.println("SETUP COMPLETE.");
         } catch (IOException e) {
             System.out.println("IO Error: " + e.getMessage());
         }
@@ -61,6 +78,7 @@ public class Run extends ApplicationAdapter {
      */
     @Override
     public void render() {
+        //if (renderCounter == 0) memory.hexDumpRomContents();
 
         runInstructions();
         lcd = ppu.renderScreen();
@@ -124,36 +142,60 @@ public class Run extends ApplicationAdapter {
         Pixmap is 'CPU' representation? and texture is GPU. Not completely sure what this means or it's implications.
         the texture will contain ref to pixmap and pixmap should update itself.
          */
-        texture.draw(pmapTileMap1, 0, 0);
+        texture.draw(pixmap, 0, 0);
 
         batch.begin();
         batch.draw(texture, 0, 0, WORLD_WIDTH * 4, WORLD_HEIGHT * 4);
         batch.end();
-        /*
-        So pixmap is held by texture, and texture held by batch?
-         */
-
     }
 
     @Override
-    public void dispose() {
-        batch.dispose();
-        texture.dispose();
-        // stop mem leaks after quitting
+    public void dispose() {// stop mem leaks after quitting
         pixmap.dispose();
         pmapTileMap1.dispose();
         pmapTileMap2.dispose();
+        texture.dispose();
+        batch.dispose();
     }
 
     /**
      * This will run all required instructions within a frame (At least that's the plan)
+     * TODO: rethink this. How exactly should the PPU run relative to the cpu?
      */
     private void runInstructions() {
-        final int maxCycleCount = 4194304; // the cycle rate per second
+        final int maxCycleCount = M_CLOCK_SPEED; // the cycle rate per second
+        int totalMCycles = cpu.getTotalMCycles();
 
-        while (cpu.getTotalMCycles() < maxCycleCount) {
+        while (totalMCycles < maxCycleCount) {
             //logState(cpu); // every instr
-            cpu.executeInstruction(); // handles the above comment
+            //if (cpu.getOP() <= 100) cpu.executeInstruction(); // handles the above comment
+            // save the cycle result before cpu increments it
+            final int oldTotalMCycles = totalMCycles;
+            cpu.executeInstruction();
+            instructionCounter++;
+            totalMCycles = cpu.getTotalMCycles(); // re-update for the loop
+
+            // every 16384 cycles
+            /*
+            The timers won't be able to increment properly if i'm increasing the cycle count by more
+            than 1 (some instructions increase by 2,3,4,... m-cycles, so i'm effectively some increments here)
+
+            I need to find the difference between the last cycle count, and the current one. Then increment
+            the timers by that amount.
+             */
+            final int cycleCountDifference = totalMCycles - oldTotalMCycles;
+            for (int i = 0; i < cycleCountDifference; i++) {
+                // iterate through all cycles up to the difference
+                final int cycleCount = oldTotalMCycles + i;
+                // then timers check if any of the cycles caused an increment
+                memory.handleDIVIncrement(cycleCount);
+                memory.handleTIMAIncrement(cycleCount);
+                /*
+                TODO: check below for correctness
+                we are incrementing at every m-cycle. I'm not sure if this is correct or that it should be incremented
+                every T-cycle?
+                 */
+            }
             printOutputPort();
         }
         cpu.resetTotalMCycles();
@@ -178,7 +220,6 @@ public class Run extends ApplicationAdapter {
             default -> throw new Exception("LCD pixel value out of range?? Should be 0-3. Value was " + pixelValue);
         };
     }
-
     // log
     private void logState(CPU cpu) {
         String fileName = "log.txt";

@@ -22,6 +22,7 @@ public class CPU {
     private static final int SERIAL_SOURCE_ADDRESS = 0x58;
     private static final int JOYPAD_SOURCE_ADDRESS = 0x60;
 
+
     private Memory memory;
 
     private int AF; // A = high, F = lo (Lower 8 bits (F) hold Flag information)
@@ -74,13 +75,13 @@ public class CPU {
         HL = 0x014D;
         SP = 0xFFFE;
         PC = 0x100;
-        /*AF = 0;
+/*        AF = 0;
         BC = 0;
         DE = 0;
         HL = 0;
         SP = 0;
         PC = 0; // for boot rom testing
-*/
+   */
         IME = false;
         eiTurnImeOn = false;
 
@@ -1574,7 +1575,13 @@ public class CPU {
             interruptHandle(); // TODO: not 100% sure this is correct
         } else if (!IME && !pendingInterrupts) {
             // the low power state (we wait until interrupt happens)
-            while (!pendingInterrupts) {}
+            while (!pendingInterrupts) {
+                memory.handleDIVIncrement(totalMCycles);
+                memory.handleTIMAIncrement(totalMCycles);
+                totalMCycles += 1;
+                pendingInterrupts = (memory.getIF() & memory.getIE()) != 0; // then re-check to potentially exit
+                // INTERRUPTS NOW PASS THE TEST!!!
+            }
         } else if (!IME && pendingInterrupts) {
             // TODO
             // potentially implement the HALT bug here? PC byte is read twice (since bug doesn't increment PC)
@@ -1688,6 +1695,14 @@ public class CPU {
           The exact behavior of this instruction is fragile and may interpret its second byte as a separate
           instruction (see the Pan Docs), which is why rgbasm(1) allows explicitly specifying the second byte
           (STOP n8) to override the default of $00 (a NOP instruction).*/
+
+        // DIV should reset when this is called (then subsequently resumed after stop ends)
+        memory.writeByte(0xFF04, (short) 0x00);
+        /* For now, we'll just move on to the next instruction (stop is 2bytes long).
+           The implementation for this is apparently strange according to PanDocs. It turns out however, that
+           no game really uses this instruction. We'll leave it like this and come back to implement it properly if
+           ever needed */
+        PC += 2;
     }
 
     // --- CB PREFIXED INSTRUCTIONS ---

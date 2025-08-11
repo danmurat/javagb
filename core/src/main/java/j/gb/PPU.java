@@ -67,6 +67,13 @@ public class PPU {
     public int[][] renderScreen() {
         final int[][] screen = new int[144][160];
         for (int scanline = 0; scanline < 144; scanline++) { // TODO change back to 154!
+            /*
+            LY never actually updates? LY is supposed to represent the scanline we're on, but no rom
+            seems to write anything to LY? Just reads. My guess is to just update LY here.
+             */
+            memory.writeByte(0xFF44, (short) scanline);
+            //System.out.println("LY pos : scanline = " + getLY()  + ", " + scanline);
+
             // we have 460 dots per scanline (unit of time)
             for (int dots = 0; dots < 160; dots++) { // TODO: change back to 460!
                 // we'll work on mode 3 for the time being.. Get all the pixels drawn properly.
@@ -99,6 +106,7 @@ public class PPU {
                     screen[72][dots] = 3;
                 }
             }
+
         }
 
         return screen;
@@ -117,34 +125,59 @@ public class PPU {
         // 5 steps
         // - get tile
         int tileMapLocation = 0x9800; // defualt unless below cases change
-        // TODO: what does it mean for x to/not to be inside window??
-        // i'll assume 'inside window' means whether x is off screen or not
-        if (getLCDCbit3() == 1 && isOffScreenX(scanlineXPos)) {
-            tileMapLocation = 0x9C00;
-        } else if (getLCDCbit6() == 1 && !isOffScreenX(scanlineXPos)) {
-            tileMapLocation = 0x9C00;
-        }
+        /*
+        what does it mean for x to/not to be inside window??
 
-        /* TODO: handle the difference between window and background tile
+        'inside window' means whether our scanline position is within the window tilemap, depending on its position.
+        The way the window tilemap is positioned is always from the top-left of the map to the screen and
+        (very importantly) can only move RIGHT and DOWN! (we can move left but just by 8 pixels)
+        This means the you essentially NEVER SEE the right and bottom parts of the window tilemap on screen.
+
+        Think of the lcd screen being within the bg tilemap. You can move the tilemap left/right up/down and it will
+        wrap around if you move it across the edge of the map. This creates a scrolling effect when playing.
+
+        The window does not do this. Your screen will always be fixed to the top-left of the window tilemap, and you
+        can only move the tile map ever-so-slightly left, and otherwise right and down. The more right and down you push,
+        you will not see anything on your lcd screen on the left and top because this map doesn't wrap around.
+
+        I found it quite hard to visualise with the words from PanDocs. This video instantly gets the image in your
+        head of how this works: https://www.youtube.com/watch?v=8TVgN16DrEU
+         */
         boolean isWindowTile = false;
-        if (getLCDCbit5() == 1 && fetcherX == getWindowX() && fetcherY == getWindowY()) {
+        if (getLCDCbit3() == 1 && !isWithinWindow(scanlineXPos, scanlineYPos)) {
+            tileMapLocation = 0x9C00;
+        } else if (getLCDCbit6() == 1 && isWithinWindow(scanlineXPos, scanlineYPos)) {
+            tileMapLocation = 0x9C00;
+            if (getLCDCbit5() == 1) isWindowTile = true;
+        } else if (getLCDCbit6() == 0 && isWithinWindow(scanlineXPos, scanlineYPos) && getLCDCbit5() == 1) {
             isWindowTile = true;
         }
-         */
 
 
-        // "The fetcher keeps track of which X and Y coordinate of the tile it’s on"
-        // forgetting about dealing with window tiles for the moment, to get the correct tile position, we do:
-        final int fetcherX = ((getSCX() / 8) + (scanlineXPos / 8)) & 0x1F; // 1F ensures result between 0-31
-        final int fetcherY = (getSCY() + scanlineYPos) & 255; // y accesses the actual row
         /*
+        "The fetcher keeps track of which X and Y coordinate of the tile it’s on"
+
         So fetcher X only cares about where the tile starts on the X plane, so it wants 0-31
         fetcher Y cares about the actual row of the tile! This wants 0-255.
-
         This way we can access the correct byte of tile data.
-
         TODO: handle VRAM blockage (on interrupts)
          */
+        int fetcherX, fetcherY;
+        if (isWindowTile) {
+            // TODO: window X may need to be subtracted by 7!
+            final int WX = getWindowX();
+            final int WY = getWindowY();
+            final int WXTileNum = WX / 8;
+            final int scanlineXTileNum = scanlineXPos / 8;
+            // the scanX/Y - winX/Y gives us the correct position of how far along a window tilemap we are.
+            fetcherX = WXTileNum + (scanlineXTileNum - WXTileNum) & 0x1F;
+            fetcherY = WY + (scanlineYPos - WY) & 255;
+        } else {
+            // forgetting about dealing with window tiles for the moment, to get the correct tile position, we do:
+            fetcherX = ((getSCX() / 8) + (scanlineXPos / 8)) & 0x1F; // 1F ensures result between 0-31
+            fetcherY = (getSCY() + scanlineYPos) & 255; // y accesses the actual row
+        }
+
 
         // tile high? tile low? figure this all out..
         int[] dataRow = getTileRow(tileMapLocation, fetcherX, fetcherY);
@@ -210,6 +243,12 @@ public class PPU {
         }
 
         return selectedObjs;
+    }
+
+    private boolean isWithinWindow(final int xPos, final int yPos) {
+        // PanDocs only says to check against xPos. But this doesn't make sense since the window yPos could be further
+        // down. We include the yPos, but keep this comment in case my thinking is wrong.
+        return xPos >= getWindowX() && yPos >= getWindowY();
     }
 
     // width = 160 pixels with +/- 8 (the width of each tile). So 0 is off screen, and 168 is too.
@@ -282,7 +321,8 @@ public class PPU {
         final int correctedTileYPos = tileYPos / 8; // gives us the correct Y tile (0-31)
         // tilyY * 32 will give us the correct number for the row we're on, added by the column.
         final int tileMapNumber = tileXPos + (correctedTileYPos * 32); // tells us which tile in the tile map we're on
-        final int correctTileRow = tileYPos % 8; // gives us the row in a specific tile
+        // correctTileRowAccess = 0-7, * 2, so we access the correct row of the tile that's stored in mem and spans all 16 addresses.
+        final int correctTileRowAccess = (tileYPos % 8) * 2;
 
         // TODO: i'm not sure if we check this once, or that we check through each iteration?
         // assuming once for now.
@@ -296,8 +336,7 @@ public class PPU {
             to access correct addr for a tile, we multiply by 16. (tile 2 would = 0x10-0x1F, tile 3 = 0x20-0x2F, etc)
              */
             final int vramTileNumber = memory.readByte(startAddress + tileMapNumber) * 16;
-            // tileRow = 0-7, * 2, so we access the correct row of the tile that's stored in mem and spans all 16 addresses.
-            final int tileRowAddress = basePointer + vramTileNumber + (correctTileRow * 2);
+            final int tileRowAddress = basePointer + vramTileNumber + correctTileRowAccess;
             tileRow = computeTileRow(tileRowAddress);
         } else {
             basePointer = BASE_POINTER_9000;
@@ -305,7 +344,7 @@ public class PPU {
             final int vramTileNumber = memory.readByte(startAddress + tileMapNumber);
             // get signed value to then use from address $9000.
             final int signedVramTileNumber = memory.getTwosCompliment(vramTileNumber) * 16;
-            final int tileAndRowAddress = basePointer + signedVramTileNumber + (correctTileRow * 2);
+            final int tileAndRowAddress = basePointer + signedVramTileNumber + correctTileRowAccess;
             tileRow = computeTileRow(tileAndRowAddress);
         }
 

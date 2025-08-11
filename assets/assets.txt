@@ -1,2 +1,3 @@
 libgdx.png
+log.txt
 vram.txt

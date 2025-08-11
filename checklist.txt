@@ -160,3 +160,10 @@ specific rows; we found that we computed the row we wanted to retrieve (which wa
 address by our computed value. But a tile in VRAM consists of 16 addresses, since gb takes 2 addresses and combines their
 values to make the 2bit result. Without muliplying our computed row by 2, we were only accessing half the tile!
 These are now fixed and all individual test roms output their text perfectly.
+
+Aug 4th:
+I think I have a better understanding of how windows work and how to differentiate between bg and win.
+I've implemented some code to distinguish whether or not we are in a window tile and do a correct access for it,
+but I don't have a thorough way to test the efficacy atm.
+
+Next I'll try to figure out why we only see the copyright R symbol in the boot-rom, and no text.
