@@ -23,6 +23,11 @@ public class Memory {
     private short[] romBankN;
     private short[] externalRam;
 
+    // initially we'll load boot and the game cartridge. Then we'll resize.
+    private short[] bootAndHeader = new short[0x150];
+    private short[] romData;
+    private short[] cartridges0xffData = new short[0x100];
+
 
     private final short[] videoRam = new short[0x2000];
     //private final short[] externalRam = new short[0x2000];
@@ -60,26 +65,30 @@ public class Memory {
     private short OBP1 = 0x00; // object pallete2 data at FF49
     private short DMA = 0x00; // DMA transfers at FF46
 
+    // access restrictors (for things like ppu modes, vblank, etc..)
+    private boolean oamAccessible = true;
+    private boolean vramAccessible = true;
+
     /**
      * Constructs and sets everything we need up.
      * TODO: think about loading rom inside here?
      */
     public Memory(final String romName) throws IOException // handle this..
     {
-        //this.cpu = cpu;
-        // always load the boot rom first (takes up $0-FF, then other roms begin at $100)
-       /* System.out.println("Loading boot rom.");
-        loadRomBank("boot.bin", true);
-        System.out.println("Boot rom loaded.");*/
-        //hexDumpRomContents();
-        System.out.println("Attempting bank0 load.");
-        loadRomBank(romName, true); // romData filled
-        System.out.println("Bank0 loaded.");
-        mbcSetup(); // setup our max array sizes for rom/eram
-        System.out.println("MBC setup.");
-        loadRomBank(romName, false); // load the rest of the data
-        System.out.println("Bank1 loaded.");
-        //hexDumpRomContents();
+        // this sequence correctly arranges boot rom and cartridge rom contents
+        // once 0xFE instruction runs, 0xFF50 is written to and we swap the original rom contents in place of boot data
+        loadBootAndHeader(romName);
+        System.out.println("Boot rom and header cartridge loaded.");
+        mbcSetup();
+        System.out.println("MBC set up complete.");
+        loadRom(romName);
+        System.out.println("Full cartridge rom loaded.");
+        fillBootRomData();
+        System.out.println("$0-ff address range swapped with boot rom data.");
+
+        // below is for running/testing boot rom only
+        //loadBootRomOnly();
+
     }
 
     /**
@@ -103,12 +112,16 @@ public class Memory {
         return IE;
     }
 
-    public short[] getRomBank0() {
-        return romBank0;
+    public void setOamAccessible(final boolean setOamAccess) {
+        oamAccessible = setOamAccess;
     }
 
-    public short[] getRomBankN() {
-        return romBankN;
+    public void setVramAccessible(final boolean setVramAccess) {
+        vramAccessible = setVramAccess;
+    }
+
+    public short[] getRomData() {
+        return romData;
     }
 
     public void setEram(final int address, final short value) {
@@ -121,106 +134,31 @@ public class Memory {
 
 
     /**
-     * Reads 16bit info from somewhere...
+     * Reads 8bit info from somewhere...
      * <br>
      * Note: address is (int) because all primitives are signed (+ and -) so short doesn't reach xFFFF (because it's cut in half essentially)
      * @param address the memory address we access
      */
-    public short readByte(final int address)
-    {
-        // Integer class so we can pattern match inside switch case.
-/*      NOTE: using this switch makes our tests run about twice as slow?
-        return (short) switch (address) {
-            case Integer a when (0x0000 <= a && a <= 0x3FFF) -> {
-                if (mbcON) {
-                    if (mbcMode == 0) yield romBank0[address];
-                        // mbc1 mode 1 allows for this address range to be banked too.
-                    else yield romBankN[(address + 0x4000) + romBankNumScaler()];
-                } else {
-                    yield romBank0[address];
-                }
-            }
-            case Integer a when (0x4000 <= a && a <= 0x7FFF) -> {
-                //romBankN[a - 0x4000];
-                if (mbcON) {
-                    yield romBankN[(address - 0x4000) + romBankNumScaler()];
-                } else {
-                    yield romBankN[address - 0x4000];
-                }
-            }
-            case Integer a when (0x8000 <= a && a <= 0x9FFF) -> videoRam[a - 0x8000];
-            case Integer a when (0xA000 <= a && a <= 0xBFFF) -> externalRam[a - 0xA000];
-            case Integer a when (0xC000 <= a && a <= 0xCFFF) -> workRam[a - 0xC000];
-            case Integer a when (0xD000 <= a && a <= 0xDFFF) -> workRam[a - 0xC000];
-            case Integer a when (0xE000 <= a && a <= 0xFDFF) -> echo[a - 0xE000];
-            case Integer a when (0xFE00 <= a && a <= 0xFE9F) -> spriteTable[a - 0xFE00];
-            case Integer a when (0xFEA0 <= a && a <= 0xFEFF) -> 0; // not usable (we'll just return 0)
-            case Integer a when (0xFF00 <= a && a <= 0xFF7F) -> switch (a) {
-                // timer addresses
-                case 0xFF04 -> DIV;
-                case 0xFF05 -> TIMA;
-                case 0xFF06 -> TMA;
-                case 0xFF07 -> TAC;
-                // interrupt address
-                case 0xFF0F -> IF;
-                // video
-                case 0xFF40 -> LCDC;
-                case 0xFF41 -> STAT;
-                case 0xFF42 -> SCY;
-                case 0xFF43 -> SCX;
-                case 0xFF44 -> LY;
-                case 0xFF45 -> LYC;
-                case 0xFF46 -> DMA;
-                case 0xFF47 -> BGP;
-                case 0xFF48 -> OBP0;
-                case 0xFF49 -> OBP1;
-                case 0xFF4A -> WY;
-                case 0xFF4B -> WX;
-                default -> ioMem[a - 0xFF00];
-            };
-            case Integer a when (0xFF80 <= a && a <= 0xFFFE) -> highRam[a - 0xFF80];
-            case Integer a when (a == 0xFFFF) -> IE;
-            default -> throw new RuntimeException("Invalid address: " + address + "\nAddress needs to be between 0x0000 and 0xFFFF");
-        };
-*/
-
-
+    public short readByte(final int address) {
         // so the address can be anywhere from 0x0000 to 0xFFFF, which is the whole range of memory (64kbyts)
         // memory map
 
         // ROM BANK 0 and 1
         if (0x0000 <= address && address <= 0x7FFF) {
-           /* if (mbcON) {
-                if (mbcMode == 0) return romBank0[address];
-                    // mbc1 mode 1 allows for this address range to be banked too.
-                else return romBankN[(address + 0x4000) + romBankNumScaler()];
-            } else {
-                return romBank0[address];
-            }*/
-            /* for BANK 1 location
-            if (mbcON) {
-                return romBankN[(address - 0x4000) + romBankNumScaler()];
-            } else {
-                return romBankN[address - 0x4000];
-            }*/
             // this should now handle appropriately depending on MBC type
             return (short) mbc.handleRomRead(address);
         } else if (0x8000 <= address && address <= 0x9FFF) { // 8kb VRAM
-            return videoRam[address - 0x8000]; // minus is to get absolute position
+            if (vramAccessible) return videoRam[address - 0x8000]; // minus is to get absolute position
+            else return 0xFF; // read junk val
         } else if (0xA000 <= address && address <= 0xBFFF) { // 8kb external ram
-           /* if (mbcON) {
-                eramEnable = false; // recommended after access
-                return externalRam[(address - 0xA000) + ramBankNumScaler()];
-            } else {
-                return externalRam[address - 0xA000];
-            }*/
             return (short) mbc.handleRamRead(address);
         } else if (0xC000 <= address && address <= 0xDFFF) { // handles bank0 and 1 together
             return workRam[address - 0xC000];
         } else if (0xE000 <= address && address <= 0xFDFF) { // == C000 to DDFF ECHO (not really used) no idea what this is
             return echo[address - 0xE000];
         } else if (0xFE00 <= address && address <= 0xFE9F) { // sprite attribute table
-            return (short) spriteTable[address - 0xFE00];
+            if (oamAccessible) return (short) spriteTable[address - 0xFE00];
+            else return 0xFF; // junk value
         } else if (0xFEA0 <= address && address <= 0xFEFF) { // not usable ...
             // TODO: return something appropriate
             //throw new RuntimeException("implement do nothing for addresses 0xFEA0 to 0xFEFF");
@@ -279,21 +217,16 @@ public class Memory {
         if (0x0000 <= address && address <= 0x7FFF) {
             mbc.handleRomWrite(address, value);
         } else if (0x8000 <= address && address <= 0x9FFF) { // 8kb vram
-            videoRam[address - 0x8000] = value; // minus is to get absolute position
+            if (vramAccessible) videoRam[address - 0x8000] = value; // minus is to get absolute position
+            // otherwise do nothing (so access is blocked)
         } else if (0xA000 <= address && address <= 0xBFFF) { // 8kb external ram
-           /* if (mbcON) {
-                eramEnable = false;
-                externalRam[(address - 0xA000) + ramBankNumScaler()] = value;
-            } else {
-                externalRam[address - 0xA000] = value;
-            }*/
             mbc.handleRamWrite(address, value);
         } else if (0xC000 <= address && address <= 0xDFFF) { // handles both banks 0/1
             workRam[address - 0xC000] = value;
         } else if (0xE000 <= address && address <= 0xFDFF) { // == C000 to DDFF ECHO (not really used) no idea what this is
             echo[address - 0xE000] = value;
         } else if (0xFE00 <= address && address <= 0xFE9F) { // sprite attribute table
-            spriteTable[address - 0xFE00] = value;
+            if (oamAccessible) spriteTable[address - 0xFE00] = value; // same as vram write
         } else if (0xFEA0 <= address && address <= 0xFEFF) { // not usable ...
             // TODO: return something appropriate
             throw new RuntimeException("implement do nothing for addresses 0xFEA0 to 0xFEFF");
@@ -319,6 +252,9 @@ public class Memory {
                 case 0xFF49 -> OBP1 = value;
                 case 0xFF4A -> WY = value;
                 case 0xFF4B -> WX = value;
+                case 0xFF50 -> {
+                    if (value == 1) replaceBootRomData();
+                }
                 default -> ioMem[address - 0xFF00] = value;
             }
         } else if (0xFF80 <= address && address <= 0xFFFE) { // high ram
@@ -354,6 +290,27 @@ public class Memory {
         final int value2 = value >> 8; // most significant byte, (bit shifted to remove low byte)
         writeByte(address, (short)value1);
         writeByte(address+1, (short)value2);
+    }
+
+
+    /**
+     * Since ppu may block access to vram/oam memory, we still need a way for it to access those locations
+     * when blocked (blockage is meant for cpu).
+     */
+    public int ppuReadVram(final int address) {
+        if (0x8000 <= address && address <= 0x9FFF) {
+            return videoRam[address - 0x8000];
+        } else {
+            throw new RuntimeException("Invalid address: " + address + "\nAddress needs to be between 0x8000 and 0x9FFF");
+        }
+    }
+
+    public int ppuReadOam(final int address) {
+         if (0xFE00 <= address && address <= 0xFE9F) {
+            return spriteTable[address - 0xFE00];
+        } else {
+            throw new RuntimeException("Invalid address: " + address + "\nAddress needs to be between 0xFE00 and 0xFE9F");
+        }
     }
 
 
@@ -508,56 +465,78 @@ public class Memory {
 
     } */
 
-
-    /**
-     * Dumps data from rom file into our array
-     * @param romName the name of our rom we run
-     * @param bankZero checks if we are loading bank0 or the rest of the rom
-     */
-    private void loadRomBank(final String romName, boolean bankZero) throws IOException
-    {
+    private void loadBootAndHeader(final String romName) throws IOException {
+        final FileInputStream bootFile = new FileInputStream(ABSOLUTE_ROM_PATH + "boot.bin");
         final FileInputStream romFile = new FileInputStream(ABSOLUTE_ROM_PATH + romName);
         int addressCounter = 0;
-        if (bankZero) {
-            while (romFile.available() > 0) {
-                if (addressCounter < 0x4000) {
-                    // the if will avoid overwriting current data saved (for the boot rom)
-                    if (romBank0[addressCounter] == 0) {
-                        romBank0[addressCounter++] = (short) romFile.read();
-                    } else {
-                        romFile.read(); // ignore result
-                        addressCounter++;
-                    }
-                } else {
-                    romFile.close();
-                    break;
-                }
-            }
-        } else {
-            while (romFile.available() > 0) {
-                if (addressCounter < 0x4000) {
-                    romFile.read(); // ignore the first bank (we've already saved it)
-                    addressCounter++;
-                } else {
-                    if ((addressCounter - 0x4000) >= romBankN.length) break;
-                    romBankN[addressCounter - 0x4000] = (short) romFile.read();
-                    addressCounter++;
-                    /*
-                    //romBankN[addressCounter++] = (short) romFile.read();
-                    I think I noticed why we needed to add + 1 to handleRomBankNum(address + 1).
-                    We start counting at address 0x4000! So romBankN from 0x0000 to 0x3FFF is empty (which in gb
-                    terms this space actually occupies + 0x4000, so 0x4000-7FFF).
-                    So when we call handleRomBankNum() we need to add 1 to the number, because they are all ahead by 1!!
-                     */
-                }
-            }
-            romFile.close();
-        }
 
+        while (bootFile.available() > 0) {
+            bootAndHeader[addressCounter++] = (short) bootFile.read();
+        }
+        bootFile.close();
+
+        addressCounter = 0; // reset
+        while (addressCounter < bootAndHeader.length) {
+            if (addressCounter < 0x100) {
+                romFile.read(); // throw away first $100, to not overwrite boot
+                addressCounter++;
+            } else {
+                bootAndHeader[addressCounter++] = (short) romFile.read();
+            }
+        }
+        romFile.close();
+    }
+
+    // done after loading boot/header + mbcSetup, so we've assigned a size for romData.
+    private void loadRom(final String romName) throws IOException {
+        final FileInputStream romFile = new FileInputStream(ABSOLUTE_ROM_PATH + romName);
+        int addressCounter = 0;
+
+        while (romFile.available() > 0) {
+            romData[addressCounter++] = (short) romFile.read();
+        }
+        romFile.close();
+    }
+
+    /**
+     * After loading boot/header and then the whole romData, we need to swap the first xFF addresses with the
+     * boot rom before running instructions.
+     */
+    private void fillBootRomData() {
+        // we save the cartridge's data then swap in the boot data. (cartridge's data will be swapped back in after bootup).
+        for (int i = 0; i < 0x100; i++) {
+            cartridges0xffData[i] = romData[i];
+            romData[i] = bootAndHeader[i];
+        }
+    }
+
+    /**
+     * after bootrom ends games need their original $0-ff data they may have had
+     */
+    private void replaceBootRomData() {
+        for (int i = 0; i < 0x100; i++) {
+            romData[i] = cartridges0xffData[i];
+        }
+    }
+
+    /**
+     * FOR TESTING BOOT ROM ONLY. Will load its contents + the logo data correctly
+     */
+    private void loadBootRomOnly() throws IOException {
+        final FileInputStream bootFile = new FileInputStream(ABSOLUTE_ROM_PATH + "boot.bin");
+        int addressCounter = 0;
+        romData = new short[0x4000];
+
+        while (bootFile.available() > 0) {
+            romData[addressCounter++] = (short) bootFile.read();
+        }
+        loadLogo();
+        // must set up so we can do read/writes
+        mbc = new MBC(this);
+        mbc.setType(MbcType.ROM_ONLY);
     }
 
 
-    // --- mbc1 handling code ---
     /**
      * This will check the cartridge type (from 0x147) and appropriately allocate the sizes for
      * our remaining rombank and external ram
@@ -565,23 +544,22 @@ public class Memory {
     private void mbcSetup() {
         mbc = new MBC(this);
 
-        final int cartridgeType = romBank0[0x147];
+        final int cartridgeType = bootAndHeader[0x147];
         // romSize is here only so we're able to run individual cpu tests (they're under mbc1 for some reason).
-        final int romSize = romBank0[0x148];
+        // NOW INDIVDUALS RUN WITHOUT THIS! (prob since we fixed the +1 banking select bug)
+        //final int romSize = romBank0[0x148];
 
-        if (cartridgeType == 0x0 || romSize == 0x0) { // ROM ONLY
+        if (cartridgeType == 0x0) { // ROM ONLY
             System.out.println("ROM ONLY Cartridge.");
             mbc.setType(MbcType.ROM_ONLY);
-            romBankN = new short[0x4000];
+            romData = new short[0x8000];
             externalRam = new short[0x2000];
         } else if (cartridgeType == 0x01 || cartridgeType == 0x02 || cartridgeType == 0x03) {
             // one of the MBC1's (we just apply the maximum sizes, 2MB rom and 32kb ram)
             System.out.println("MBC1 Cartridge.");
             mbc.setType(MbcType.MBC_1);
-            //mbcON = true;
-            romBankN = new short[2000000 - 0x4000];
+            romData = new short[2000000];
             externalRam = new short[32000];
-            // TODO: think carefully about romBank0 and 1. Could we have just romData?
         }
     }
 
@@ -599,7 +577,7 @@ public class Memory {
         final int startAddress = 0x104;
 
         for (int i = 0; i < logoData.length; i++) {
-            romBank0[startAddress + i] = (short) logoData[i];
+            romData[startAddress + i] = (short) logoData[i];
         }
     }
 

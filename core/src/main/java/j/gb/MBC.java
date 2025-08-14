@@ -102,14 +102,15 @@ public class MBC {
     // ---- ROM_ONLY methods ----
 
     private int romOnlyHandleRomRead(final int address) {
-        if (0x0000 <= address && address <= 0x3FFF) {
+      /*  if (0x0000 <= address && address <= 0x3FFF) {
             return memory.getRomBank0()[address];
         } else if (0x4000 <= address && address <= 0x7FFF) {
             // remember we need to scale the actual array index back 0x4000!
             return memory.getRomBankN()[address - 0x4000];
         } else {
             throw new RuntimeException(String.format(ROM_ADDRESS_OUT_OF_RANGE, address));
-        }
+        }*/
+        return memory.getRomData()[address];
     }
     // we do nothing since gb can't write to rom
     private void romOnlyHandleRomWrite() {}
@@ -130,11 +131,11 @@ public class MBC {
 
     private int mbc1HandleRomRead(final int address) {
         if (0x0000 <= address && address <= 0x3FFF) {
-            if (mbc1Mode == 0) return memory.getRomBank0()[address];
-                // mbc1 mode 1 allows for this address range (bank 0) to be banked and swapped too.
-            else return memory.getRomBankN()[(address + 0x4000) + romBankNumScaler()];
+            if (mbc1Mode == 0) return memory.getRomData()[address];
+            // mbc1 mode 1 allows for this address range (bank 0) to be banked and swapped too.
+            else return memory.getRomData()[(address + 0x4000) + romBankNumScaler()]; // Not confident this is totally correct
         } else if (0x4000 <= address && address <= 0x7FFF){
-            return memory.getRomBankN()[(address - 0x4000) + romBankNumScaler()];
+            return memory.getRomData()[address + romBankNumScaler()];
         } else {
             throw new RuntimeException(String.format(ROM_ADDRESS_OUT_OF_RANGE, address));
         }
@@ -245,7 +246,7 @@ public class MBC {
      */
     private int romBankNumScaler() {
         if (currentRomBank == 0) return 0;
-        else return 0x4000 * (currentRomBank - 1); // bank1 starts at 0x0 in array, so if we remain on bank1, we need the 0 result.
+        else return 0x4000 * (currentRomBank - 1); // -1 since we don't want to add an extra 0x4000 if we're still on 1.
     }
 
     /**

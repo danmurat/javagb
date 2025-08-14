@@ -1,5 +1,9 @@
 package j.gb;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+
 /**
  * Represents the game boy CPU.
  * <br>
@@ -21,6 +25,7 @@ public class CPU {
     private static final int TIMER_SOURCE_ADDRESS = 0x50;
     private static final int SERIAL_SOURCE_ADDRESS = 0x58;
     private static final int JOYPAD_SOURCE_ADDRESS = 0x60;
+
 
 
     private Memory memory;
@@ -58,6 +63,7 @@ public class CPU {
     For now, just keep track of totalCycles...
      */
     private int totalMCycles;
+    private int instructionCounter = 0;
 
     // DEBUGGING ONLY
     private int currentOpcode = 0;
@@ -69,19 +75,20 @@ public class CPU {
         this.memory = memory;
 
         // addresses after boot rom
-        AF = 0x01B0;
+      /*  AF = 0x01B0;
         BC = 0x0013;
         DE = 0x00D8;
         HL = 0x014D;
         SP = 0xFFFE;
-        PC = 0x100;
-/*        AF = 0;
+        PC = 0x100;*/
+
+        AF = 0;
         BC = 0;
         DE = 0;
         HL = 0;
         SP = 0;
         PC = 0; // for boot rom testing
-   */
+
         IME = false;
         eiTurnImeOn = false;
 
@@ -133,12 +140,92 @@ public class CPU {
     public void resetTotalMCycles() {
         totalMCycles = 0;
     }
+    public int getTotalInstructionCount() {
+        return instructionCounter;
+    }
+    public void resetInstructionCount() {
+        instructionCounter = 0;
+    }
+
+    /// allows us to debug/test roms
+    private void logState() {
+        String fileName = "log.txt";
+        byte a = (byte) get8bitReg('A');
+        byte b = (byte) get8bitReg('B');
+        byte c = (byte) get8bitReg('C');
+        byte d = (byte) get8bitReg('D');
+        byte e = (byte) get8bitReg('E');
+        byte h = (byte) get8bitReg('H');
+        byte l = (byte) get8bitReg('L');
+        byte f = (byte) getFreg();
+        int sp = getSP();
+        int pc = getPC();
+        int[] pcmem = getPCmem();
+
+        String logLine = String.format("A:%02x F:%02x B:%02x C:%02x D:%02x E:%02x H:%02x L:%02x SP:%04x PC:%04x PCMEM:%02x,%02x,%02x,%02x",
+            a, f, b, c, d, e, h, l, sp, pc, pcmem[0], pcmem[1], pcmem[2], pcmem[3]);
+
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName, true))) {
+            writer.write(logLine);
+            writer.newLine();
+            writer.flush();
+        } catch (IOException err) {
+            err.printStackTrace(); // for now..
+        }
+    }
 
     /**
-     * Main cpu execution method.
+    After running cpu and ppu concurrently, we realised that their timing of execution is very likely not synced up
+    at all. This matters. The actual hardware had a specific master clock cycle that all pieces of hardware ran on
+    precicely, meaning that no one component will run faster than another. (some pieces may differ, but they are always
+    a whole division of a master clock (div 2, div 3, etc...).
+
+    We need to sync up the cpu and ppu, so that a certain number of cycles gets run on the cpu before we need to
+    deal with a render (the differing modes).
+
+    Below will be a method that limits a certain amount of intented instruction executions we can run (which includes
+    handling the timer/div register increments). This will be for syncing up with a ppu render.
+
+    Also consider writing a unlimited version, for when the ppu hasn't been enabled yet. (will have to deal with some
+    boolean conditions). TODO.
+     */
+    public void runInstructions(final int cycleLimit, final boolean resetCycleCounter) {
+        while (totalMCycles < cycleLimit) {
+            final int oldTotalMCycles = totalMCycles;
+            executeInstruction();
+            // every 16384 cycles
+            /*
+            The timers won't be able to increment properly if i'm increasing the cycle count by more
+            than 1 (some instructions increase by 2,3,4,... m-cycles, so i'm effectively some increments here)
+
+            I need to find the difference between the last cycle count, and the current one. Then increment
+            the timers by that amount.
+             */
+            final int cycleCountDifference = totalMCycles - oldTotalMCycles;
+            for (int i = 0; i < cycleCountDifference; i++) {
+                // iterate through all cycles up to the difference
+                final int cycleCount = oldTotalMCycles + i;
+                // then timers check if any of the cycles caused an increment
+                memory.handleDIVIncrement(cycleCount);
+                memory.handleTIMAIncrement(cycleCount);
+                /*
+                we are incrementing at every m-cycle. I'm not sure if this is correct or that it should be incremented
+                every T-cycle? This way still passes the interrupts test.
+                 */
+            }
+        }
+        // this is for when we need to check how many cycles this method ran for from outside this method
+        // if we don't need that info, we just reset like so.
+        if (resetCycleCounter) resetTotalMCycles();
+    }
+
+    /**
+     * Main cpu single execution method.
      * Reads opcode, finds and runs correct instruction.
      */
-    public void executeInstruction() {
+    private void executeInstruction() {
+        //instructionCounter++;
+        //logState();
         // opcode is the value at the memory address specified by program counter
         // fetch
         if (!eiTurnImeOn) {

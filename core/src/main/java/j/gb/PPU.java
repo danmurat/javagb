@@ -21,7 +21,12 @@ public class PPU {
     private static final int OAM_ACCESS_SCALER = 4;
 
 
+    private final int[][] screen = new int[144][160];
+
     private Memory memory;
+    private CPU cpu;
+
+    private int totalCycleCount = 0;
 
     private boolean mode0; // horizontal blank
     private boolean mode1; // vertical blank
@@ -30,14 +35,12 @@ public class PPU {
 
     private boolean ppuDisabled;
 
-    private int[][][][] tileMap1;
-    private int[][][][] tileMap2;
-
     private ArrayDeque<Integer> bgFIFO;
     private ArrayDeque<Integer> objFIFO;
 
-    public PPU(Memory memory) {
+    public PPU(Memory memory, CPU cpu) {
         this.memory = memory;
+        this.cpu = cpu;
         // set all false for now till we figure out what to do
         mode0 = false;
         mode1 = false;
@@ -49,6 +52,19 @@ public class PPU {
         bgFIFO = new ArrayDeque<>();
         objFIFO = new ArrayDeque<>();
     }
+
+    public void resetTotalCycleCount() {
+        totalCycleCount = 0;
+    }
+
+    public int getTotalCycleCount() {
+        return totalCycleCount;
+    }
+
+    public int[][] getScreen() {
+        return screen;
+    }
+
 
     // methods..
 
@@ -62,54 +78,101 @@ public class PPU {
     Mode 3 is when we actually draw the pixels.
     It takes up 172-289 dots. The variance is caused by things slowing down the time to draw (so it's a bit complicated)
     At minimum, with no delays, we draw the 160 pixels for a scan line in 172 dots.
-     */
 
+    NOTE: we run a certain number of instructions here! This is an attempt to have the screen rendering and
+    cpu synced.
+     */
     public int[][] renderScreen() {
-        final int[][] screen = new int[144][160];
-        for (int scanline = 0; scanline < 144; scanline++) { // TODO change back to 154!
-            /*
-            LY never actually updates? LY is supposed to represent the scanline we're on, but no rom
-            seems to write anything to LY? Just reads. My guess is to just update LY here.
-             */
-            memory.writeByte(0xFF44, (short) scanline);
+        resetTotalCycleCount();
+        for (int scanline = 0; scanline < 154; scanline++) {
+            memory.writeByte(0xFF44, (short) scanline); // update since cpu won't do it
             //System.out.println("LY pos : scanline = " + getLY()  + ", " + scanline);
 
-            // we have 460 dots per scanline (unit of time)
-            for (int dots = 0; dots < 160; dots++) { // TODO: change back to 460!
-                // we'll work on mode 3 for the time being.. Get all the pixels drawn properly.
+            // we have 460 dots per scanline (dot = T-cycle)
+            if (scanline < 144) {
+                // run mode2 (80 dots cycle)
+                memory.setOamAccessible(false);
+                cpu.runInstructions(80 / 4, true); // div by 4 to get M-cycles
 
-                // for now just follow the dots. Will be changed once we add back 460 dots.
-                int xPos = dots; // x of the current scanline
+                // mode 3 (172-289 dots). We must iterate this time to deal with the varying dots
+                memory.setVramAccessible(false);
+                int dots = 0;
+                int mode3RequiredDots = 172; // max width + 12 dots
+                int mode3RunDotsCount = 0; // allow us to control how often we run instructions.
+                int penaltyCount = 12; // first penalty occurs instantly in mode 3 (panDocs)
+                int penaltyAccumulator = 12; // keep hold of total, so we can access the correct pixel x position
+                // testing scroll penalty
+              /*  int scrollPenalty = getSCX() % 8;
+                penaltyCount = scrollPenalty;
+                penaltyAccumulator = penaltyCount;
+                mode3RequiredDots += penaltyAccumulator;*/
 
-                // only accepts when empty
-                if (bgFIFO.isEmpty()) {
-                    bgFIFO = pixelFetcher(xPos, scanline);
+                while (dots < mode3RequiredDots) {
+                    // makes sure we iterate through dots depending on how many cycles cpu went through
+                    if (mode3RunDotsCount == 0) {
+                        cpu.runInstructions(1, false);
+                        mode3RunDotsCount = cpu.getTotalMCycles() * 4; // get the T-cycles just ran
+                        cpu.resetTotalMCycles();
+                    }
+                    mode3RunDotsCount--;
+                    /*
+                    Below, we're directly translating the dot number to the pixel X position, which isn't correct.
+                    I think, depending on the penalty that has occured, we'll have to subtract by the accumulated penalty.
+                    For example, if we've accumulated the max penalties (our dots reaches 289) we will be drawing at
+                    pixelX 160.
+
+                    PROBLEM. If the requiredDots increases, then drawPixel will be called an
+                    increasing amount of times!!
+                    We need a way of running drawPixels() 160 times ONLY, but the runInstructions() to run for the required
+                    amount of times.
+
+                    something like, if (penaltyCount == 0) drawPixel(),
+                                    else penaltyCount-- // until we pass the dot iterations
+                     */
+                    if (penaltyCount == 0) {
+                        final int xPos = dots - penaltyAccumulator;
+                        drawPixel(xPos, scanline, screen);
+                    } else {
+                        penaltyCount--;
+                    }
+
+                    dots++; //
                 }
 
-                /*
-                Just quickly trying to get this running and working to see if there's any feedback.
-                This is probably very far from correct, but I want to see if I can quickly get
-                something on the screen!
+                // mode0 HBlank (lasts for the remaining number of dots left)
+                memory.setOamAccessible(true);
+                memory.setVramAccessible(true);
+                final int remainingCycles = 460 - 80 - dots;
+                cpu.runInstructions(remainingCycles / 4, true);
 
-                So the scanline and dots are just between the lcd screen sizes (not how they should be!).
+            } else { // finally VBlank
+                 /*
+                THOUGHT: I think here, we're supposed to be requesting a VBlank interrupt...
                  */
-                screen[scanline][dots] = bgFIFO.pop();
+               /* if (scanline == 144) {
+                    memory.writeByte(0xFF0F, (short) 0x1); // request vblank interrupt
+                    memory.writeByte(0xFFFF, (short) 0x1); // and enable
+                    // nothings changed..
+                }*/
+                // we run per scanline rather than calling the whole 4560 cycles, so that the LY still increments (might be needed)
+                cpu.runInstructions(456 / 4, true);
 
-                // so at the start of each tile, we'll draw a black pixel to indicate the start of it in
-                // the middle of the screen.
-                // TODO: remove once not needed
-                if (scanline % 8 == 0) {
-                    screen[scanline][80] = 3;
-                }
-                // same across. So we have a good idea what text represents what tile on screen.
-                if (dots % 8 == 0) {
-                    screen[72][dots] = 3;
-                }
             }
-
         }
 
         return screen;
+    }
+
+    /**
+     * Fills the screen array with a single pixel whilst in mode 3 of rendering.
+     */
+    private void drawPixel(final int x, final int y, final int[][] screen) {
+        // only accepts when empty
+        if (bgFIFO.isEmpty()) {
+            bgFIFO = pixelFetcher(x, y);
+        }
+
+        screen[y][x] = bgFIFO.pop();
     }
 
     /*
@@ -160,7 +223,6 @@ public class PPU {
         So fetcher X only cares about where the tile starts on the X plane, so it wants 0-31
         fetcher Y cares about the actual row of the tile! This wants 0-255.
         This way we can access the correct byte of tile data.
-        TODO: handle VRAM blockage (on interrupts)
          */
         int fetcherX, fetcherY;
         if (isWindowTile) {
@@ -286,10 +348,10 @@ public class PPU {
     private int[] getObjectOAM(final int objNum) {
         final int[]oamInfo = new int[4];
         // will get each byte of info
-        final int yPos = memory.readByte(OAM_MEMORY_START + objNum * OAM_ACCESS_SCALER);
-        final int xPos = memory.readByte((OAM_MEMORY_START + objNum * OAM_ACCESS_SCALER) + 1);
-        final int tileIndex = memory.readByte((OAM_MEMORY_START + objNum * OAM_ACCESS_SCALER) + 2);
-        final int attributes = memory.readByte((OAM_MEMORY_START + objNum * OAM_ACCESS_SCALER) + 3);
+        final int yPos = memory.ppuReadOam(OAM_MEMORY_START + objNum * OAM_ACCESS_SCALER);
+        final int xPos = memory.ppuReadOam((OAM_MEMORY_START + objNum * OAM_ACCESS_SCALER) + 1);
+        final int tileIndex = memory.ppuReadOam((OAM_MEMORY_START + objNum * OAM_ACCESS_SCALER) + 2);
+        final int attributes = memory.ppuReadOam((OAM_MEMORY_START + objNum * OAM_ACCESS_SCALER) + 3);
 
         oamInfo[0] = yPos;
         oamInfo[1] = xPos;
@@ -332,16 +394,16 @@ public class PPU {
             each address in the tileMap holds a byte index. This means that we have the values 0-255 which is the
             number of the tile in VRAM.
             the startAddr + tileNumber accesses the correct tile from the tileMap, then we get the vram tile num
-            since 1 tile = 16bytes, a single VRAM address holds a single byte. So VRAM address x0-xF holds 1 tile
-            to access correct addr for a tile, we multiply by 16. (tile 2 would = 0x10-0x1F, tile 3 = 0x20-0x2F, etc)
+            since 1 tile = 16bytes, a single VRAM address holds a single byte. So VRAM address x0-xF holds 1 tile.
+            To access correct addr for a tile, we multiply by 16. (tile 2 would = 0x10-0x1F, tile 3 = 0x20-0x2F, etc)
              */
-            final int vramTileNumber = memory.readByte(startAddress + tileMapNumber) * 16;
+            final int vramTileNumber = memory.ppuReadVram(startAddress + tileMapNumber) * 16;
             final int tileRowAddress = basePointer + vramTileNumber + correctTileRowAccess;
             tileRow = computeTileRow(tileRowAddress);
         } else {
             basePointer = BASE_POINTER_9000;
 
-            final int vramTileNumber = memory.readByte(startAddress + tileMapNumber);
+            final int vramTileNumber = memory.ppuReadVram(startAddress + tileMapNumber);
             // get signed value to then use from address $9000.
             final int signedVramTileNumber = memory.getTwosCompliment(vramTileNumber) * 16;
             final int tileAndRowAddress = basePointer + signedVramTileNumber + correctTileRowAccess;
@@ -360,9 +422,9 @@ public class PPU {
         // we have 2 8x8 bits.
         // for each index in them, we or them for that position.
         // we save the result (0-3 colour index) for that pixel
-        int[] rowData1 = byteToArray(memory.readByte(tileAndRowAddress));
+        int[] rowData1 = byteToArray(memory.ppuReadVram(tileAndRowAddress));
         // address after stores the next part of the data for the final byte row (to be combined together to make values 0-3)
-        int[] rowData2 = byteToArray(memory.readByte(tileAndRowAddress + 1));
+        int[] rowData2 = byteToArray(memory.ppuReadVram(tileAndRowAddress + 1));
 
         // then this last step is calculating the 2bit colour value.
         for (int i = 0; i < tileRow.length; i++) {

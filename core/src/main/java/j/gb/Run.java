@@ -36,7 +36,6 @@ public class Run extends ApplicationAdapter {
     private Memory memory;
     private CPU cpu;
     private PPU ppu;
-    private MBC mbc;
     private int[][] lcd;
     private int[][] tilemap1;
     private int[][] tilemap2;
@@ -60,13 +59,14 @@ public class Run extends ApplicationAdapter {
                 This is due to these roms identifying as MBC1, even
                 when they still only have 2 banks (can fit in gb)
               */
-            memory.loadLogo(); // for nintendo logo debugging
+            //memory.loadLogo(); // for nintendo logo debugging
             //memory.writeByte(0x100, (short) 0); // DUBUGGING BOOT ROM PURPOSES (so that we don't execute the test rom)
             cpu = new CPU(memory);
             memory.setCPU(cpu);
-            ppu = new PPU(memory);
+            ppu = new PPU(memory, cpu);
             //mbc = new MBC();
             //memory.setMBC(mbc);
+
             System.out.println("SETUP COMPLETE.");
         } catch (IOException e) {
             System.out.println("IO Error: " + e.getMessage());
@@ -78,12 +78,15 @@ public class Run extends ApplicationAdapter {
      */
     @Override
     public void render() {
+        //System.out.println("Instructions run per second: " + cpu.getTotalInstructionCount());
+        //cpu.resetInstructionCount();
+
         //if (renderCounter == 0) memory.hexDumpRomContents();
 
-        runInstructions();
+        //runInstructions();
         lcd = ppu.renderScreen();
-        tilemap1 = ppu.computeTileMap(false);
-        tilemap2 = ppu.computeTileMap(true);
+        //tilemap1 = ppu.computeTileMap(false);
+        //tilemap2 = ppu.computeTileMap(true);
 
         /*
         We've fixed the half text issue. This shouldn't be needed anymore but will keep commented out incase
@@ -124,6 +127,7 @@ public class Run extends ApplicationAdapter {
         }
 
        // filling tilemaps
+/*
         for (int y = 0; y < 256; y++) {
             for (int x = 0; x < 256; x++) {
                 try {
@@ -136,8 +140,9 @@ public class Run extends ApplicationAdapter {
                 }
             }
         }
+*/
 
-       ScreenUtils.clear(0.15f, 0.15f, 0.2f, 1f);
+       //ScreenUtils.clear(0.15f, 0.15f, 0.2f, 1f);
         /*
         Pixmap is 'CPU' representation? and texture is GPU. Not completely sure what this means or it's implications.
         the texture will contain ref to pixmap and pixmap should update itself.
@@ -171,7 +176,7 @@ public class Run extends ApplicationAdapter {
             //if (cpu.getOP() <= 100) cpu.executeInstruction(); // handles the above comment
             // save the cycle result before cpu increments it
             final int oldTotalMCycles = totalMCycles;
-            cpu.executeInstruction();
+            //cpu.executeInstruction(); has been made private, look at runInstructions() in CPU.java
             instructionCounter++;
             totalMCycles = cpu.getTotalMCycles(); // re-update for the loop
 
@@ -220,32 +225,7 @@ public class Run extends ApplicationAdapter {
             default -> throw new Exception("LCD pixel value out of range?? Should be 0-3. Value was " + pixelValue);
         };
     }
-    // log
-    private void logState(CPU cpu) {
-        String fileName = "log.txt";
-        byte a = (byte) cpu.get8bitReg('A');
-        byte b = (byte) cpu.get8bitReg('B');
-        byte c = (byte) cpu.get8bitReg('C');
-        byte d = (byte) cpu.get8bitReg('D');
-        byte e = (byte) cpu.get8bitReg('E');
-        byte h = (byte) cpu.get8bitReg('H');
-        byte l = (byte) cpu.get8bitReg('L');
-        byte f = (byte) cpu.getFreg();
-        int sp = cpu.getSP();
-        int pc = cpu.getPC();
-        int[] pcmem = cpu.getPCmem();
 
-        String logLine = String.format("A:%02x F:%02x B:%02x C:%02x D:%02x E:%02x H:%02x L:%02x SP:%04x PC:%04x PCMEM:%02x,%02x,%02x,%02x",
-            a, f, b, c, d, e, h, l, sp, pc, pcmem[0], pcmem[1], pcmem[2], pcmem[3]);
-
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(fileName, true))) {
-            writer.write(logLine);
-            writer.newLine();
-            writer.flush();
-        } catch (IOException err) {
-            err.printStackTrace(); // for now..
-        }
-    }
 
     private void logVram(final int[][][] vramTileData) {
         String filename = "vram.txt";
