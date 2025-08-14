@@ -207,12 +207,12 @@ public class PPU {
         head of how this works: https://www.youtube.com/watch?v=8TVgN16DrEU
          */
         boolean isWindowTile = false;
-        if (getLCDCbit3() == 1 && !isWithinWindow(scanlineXPos, scanlineYPos)) {
+        if (memory.getLCDCbit3() == 1 && !isWithinWindow(scanlineXPos, scanlineYPos)) {
             tileMapLocation = 0x9C00;
-        } else if (getLCDCbit6() == 1 && isWithinWindow(scanlineXPos, scanlineYPos)) {
+        } else if (memory.getLCDCbit6() == 1 && isWithinWindow(scanlineXPos, scanlineYPos)) {
             tileMapLocation = 0x9C00;
-            if (getLCDCbit5() == 1) isWindowTile = true;
-        } else if (getLCDCbit6() == 0 && isWithinWindow(scanlineXPos, scanlineYPos) && getLCDCbit5() == 1) {
+            if (memory.getLCDCbit5() == 1) isWindowTile = true;
+        } else if (memory.getLCDCbit6() == 0 && isWithinWindow(scanlineXPos, scanlineYPos) && memory.getLCDCbit5() == 1) {
             isWindowTile = true;
         }
 
@@ -291,7 +291,7 @@ public class PPU {
         final int LY = getLY(); // current horizontal scanline
 
         // this will determine size, but do we really need to check that in here?
-        final int checkObjSize = getLCDCbit2(); // TODO: what do we really need this for?
+        final int checkObjSize = memory.getLCDCbit2(); // TODO: what do we really need this for?
 
         // we loop through all oam's sequentially, check if their yPos = LY, then add to selected if so
         for (int i = 0; i < 40; i++) {
@@ -388,7 +388,7 @@ public class PPU {
 
         // TODO: i'm not sure if we check this once, or that we check through each iteration?
         // assuming once for now.
-        if (getLCDCbit4() == 1) {
+        if (memory.getLCDCbit4() == 1) {
             basePointer = BASE_POINTER_8000;
             /*
             each address in the tileMap holds a byte index. This means that we have the values 0-255 which is the
@@ -445,52 +445,7 @@ public class PPU {
         return bitArray;
     }
 
-    // this indicates whether what mode we access in VRAM
-    private int getLCDCbit0() {
-        return memory.readByte(0xFF40) & 0x01;
-    }
 
-    // object enable
-    private int getLCDCbit1() {
-        final int bit1 = 0b10;
-        return (memory.readByte(0xFF40) & bit1) >> 1;
-    }
-
-    // determines the object size. If on, obj will be 8x16 instead.
-    private int getLCDCbit2() {
-        final int bit2 = 0b100;
-        return (memory.readByte(0xFF40) & bit2) >> 2;
-    }
-
-    // background tile map area: if 0, area = $9800, 1 = $9C00
-    private int getLCDCbit3() {
-        final int bit3 = 0b1000;
-        return (memory.readByte(0xFF40) & bit3) >> 3;
-    }
-
-    // determines the addressing mode for getting background/window tiles
-    private int getLCDCbit4() {
-        final int bit4 = 0b10000;
-        return (memory.readByte(0xFF40) & bit4) >> 4;
-    }
-
-    // indicates wether the window is displayed
-    private int getLCDCbit5() {
-        final int bit5 = 0b100000;
-        return (memory.readByte(0xFF40) & bit5) >> 5;
-    }
-
-    // window tile map area: if 0, area = $9800, else $9C00 (like bit3 above)
-    private int getLCDCbit6() {
-        final int bit6 = 0b1000000;
-        return (memory.readByte(0xFF40) & bit6) >> 6;
-    }
-
-    // LCD enable bit, to check if screen should be on or not
-    private int getLCDCbit7() {
-        final int bit7 = 0b10000000;
-        return (memory.readByte(0xFF40) & bit7) >> 7;
-    }
 
 
 

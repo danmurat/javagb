@@ -193,15 +193,39 @@ public class CPU {
         while (totalMCycles < cycleLimit) {
             final int oldTotalMCycles = totalMCycles;
             executeInstruction();
-            // every 16384 cycles
-            /*
-            The timers won't be able to increment properly if i'm increasing the cycle count by more
-            than 1 (some instructions increase by 2,3,4,... m-cycles, so i'm effectively some increments here)
+            handleTimerIncrements(oldTotalMCycles, totalMCycles);
+        }
+        // this is for when we need to check how many cycles this method ran for from outside this method
+        // if we don't need that info, we just reset like so.
+        if (resetCycleCounter) resetTotalMCycles();
+    }
 
-            I need to find the difference between the last cycle count, and the current one. Then increment
-            the timers by that amount.
-             */
-            final int cycleCountDifference = totalMCycles - oldTotalMCycles;
+    /**
+     * Runs instructions when screen is off, indefinitely until the lcdc bit 7 is turned on by the cpu.
+     * So the screen turns on, execution swaps to the instructions call inside screenRender() for the sync up.
+     */
+    public void screenOffInstructionRun() {
+        boolean lcdOff = memory.getLCDCbit7() == 0;
+        while (lcdOff) {
+            final int oldTotalMCycles = totalMCycles;
+            executeInstruction();
+            handleTimerIncrements(oldTotalMCycles, totalMCycles);
+            lcdOff = memory.getLCDCbit7() == 0;
+        }
+        resetTotalMCycles();
+    }
+
+    /**
+     * Properly increments the timers based off how many cycles were just ran. <br>
+     *
+     * The timers won't be able to increment properly if i'm increasing the cycle count by more
+     * than 1 (some instructions increase by 2,3,4,... m-cycles, so i'm effectively some increments here)
+     * I need to find the difference between the last cycle count, and the current one. Then increment
+     * the timers by that amount.
+     */
+    private void handleTimerIncrements(final int oldTotalMCycles, final int newTotalMCycles) {
+            // every 16384 cycles
+            final int cycleCountDifference = newTotalMCycles - oldTotalMCycles;
             for (int i = 0; i < cycleCountDifference; i++) {
                 // iterate through all cycles up to the difference
                 final int cycleCount = oldTotalMCycles + i;
@@ -213,10 +237,6 @@ public class CPU {
                 every T-cycle? This way still passes the interrupts test.
                  */
             }
-        }
-        // this is for when we need to check how many cycles this method ran for from outside this method
-        // if we don't need that info, we just reset like so.
-        if (resetCycleCounter) resetTotalMCycles();
     }
 
     /**

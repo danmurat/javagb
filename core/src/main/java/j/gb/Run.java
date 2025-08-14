@@ -36,7 +36,7 @@ public class Run extends ApplicationAdapter {
     private Memory memory;
     private CPU cpu;
     private PPU ppu;
-    private int[][] lcd;
+    private int[][] lcd = new int[144][160];
     private int[][] tilemap1;
     private int[][] tilemap2;
 
@@ -83,8 +83,12 @@ public class Run extends ApplicationAdapter {
 
         //if (renderCounter == 0) memory.hexDumpRomContents();
 
-        //runInstructions();
-        lcd = ppu.renderScreen();
+        // screen will be black until lcd turns on
+        final boolean lcdOff = memory.getLCDCbit7() == 0;
+        if (lcdOff) cpu.screenOffInstructionRun();
+        else lcd = ppu.renderScreen(); // runs instructions inside for cycle accuracy/sync
+
+
         //tilemap1 = ppu.computeTileMap(false);
         //tilemap2 = ppu.computeTileMap(true);
 
