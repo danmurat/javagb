@@ -4,16 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="3d99bb93-0256-4e75-8212-af97d2135b8d" name="Changes" comment="Timer Interrupt implemented + Memory Bank Controller 1 implemented&#10;&#10;main cpu_instrs test rom passing (is able to bank switch).">
+    <list default="true" id="3d99bb93-0256-4e75-8212-af97d2135b8d" name="Changes" comment="Much better synchronising of CPU/PPU.&#10;&#10;- Programme now scrolls boot rom, switches to cartridge rom and runs, all at a proper frame rate">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/assets/assets.txt" beforeDir="false" afterPath="$PROJECT_DIR$/assets/assets.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/CPU.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/CPU.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/MBC.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/MBC.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/Memory.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/Memory.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/Run.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/Run.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lwjgl3/src/main/java/j/gb/lwjgl3/Lwjgl3Launcher.java" beforeDir="false" afterPath="$PROJECT_DIR$/lwjgl3/src/main/java/j/gb/lwjgl3/Lwjgl3Launcher.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/assets/javagb bootup.gif" beforeDir="false" afterPath="$PROJECT_DIR$/assets/javagbBootup.gif" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -195,7 +189,7 @@
       <workItem from="1755092315066" duration="59000" />
       <workItem from="1755092382480" duration="52000" />
       <workItem from="1755092444532" duration="12761000" />
-      <workItem from="1755162885144" duration="11080000" />
+      <workItem from="1755162885144" duration="11428000" />
     </task>
     <task id="LOCAL-00001" summary="Migration to libGDX project setup">
       <option name="closed" value="true" />
@@ -229,7 +223,23 @@
       <option name="project" value="LOCAL" />
       <updated>1754921913822</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="Much better synchronising of CPU/PPU.&#10;&#10;- Programme now scrolls boot rom, switches to cartridge rom and runs, all at a proper frame rate">
+      <option name="closed" value="true" />
+      <created>1755186504462</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1755186504462</updated>
+    </task>
+    <task id="LOCAL-00006" summary="Much better synchronising of CPU/PPU.&#10;&#10;- Programme now scrolls boot rom, switches to cartridge rom and runs, all at a proper frame rate">
+      <option name="closed" value="true" />
+      <created>1755186573360</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1755186573360</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -255,7 +265,8 @@
     <MESSAGE value="Basic screen rendering working. &#10;&#10;- Now connects to our PPU to produce a visable image on computer." />
     <MESSAGE value="Fixed some screen render bugs.&#10;&#10;- Now accesses background tiles without issue." />
     <MESSAGE value="Timer Interrupt implemented + Memory Bank Controller 1 implemented&#10;&#10;main cpu_instrs test rom passing (is able to bank switch)." />
-    <option name="LAST_COMMIT_MESSAGE" value="Timer Interrupt implemented + Memory Bank Controller 1 implemented&#10;&#10;main cpu_instrs test rom passing (is able to bank switch)." />
+    <MESSAGE value="Much better synchronising of CPU/PPU.&#10;&#10;- Programme now scrolls boot rom, switches to cartridge rom and runs, all at a proper frame rate" />
+    <option name="LAST_COMMIT_MESSAGE" value="Much better synchronising of CPU/PPU.&#10;&#10;- Programme now scrolls boot rom, switches to cartridge rom and runs, all at a proper frame rate" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
