@@ -20,6 +20,11 @@ public class PPU {
     // since OAM info for object is 4 bytes long, access for each obj must be scaled for correct location of object info
     private static final int OAM_ACCESS_SCALER = 4;
 
+    private static final int IF_ADDRESS = 0xFF0F;
+    private static final int STAT_ADDRESS = 0xFF41;
+    private static final int LY_ADDRESS = 0xFF44;
+    private static final int LYC_ADDRESS = 0xFF45;
+
 
     private final int[][] screen = new int[144][160];
 
@@ -87,12 +92,16 @@ public class PPU {
         for (int scanline = 0; scanline < 154; scanline++) {
             memory.writeByte(0xFF44, (short) scanline); // update since cpu won't do it
             //System.out.println("LY pos : scanline = " + getLY()  + ", " + scanline);
+            setStatBit2();
+            checkSTATInterrupt();
 
             // we have 460 dots per scanline (dot = T-cycle)
             if (scanline < 144) {
                 // run mode2 (80 dots cycle)
+                setStatMode2(true); // TODO: there may be no need to set this manually..
                 memory.setOamAccessible(false);
                 cpu.runInstructions(80 / 4, true); // div by 4 to get M-cycles
+                setStatMode2(false);
 
                 // mode 3 (172-289 dots). We must iterate this time to deal with the varying dots
                 memory.setVramAccessible(false);
@@ -140,11 +149,12 @@ public class PPU {
                 }
 
                 // mode0 HBlank (lasts for the remaining number of dots left)
+                setStatMode0(true);
                 memory.setOamAccessible(true);
                 memory.setVramAccessible(true);
                 final int remainingCycles = 460 - 80 - dots;
                 cpu.runInstructions(remainingCycles / 4, true);
-
+                setStatMode0(false);
             } else { // finally VBlank
                  /*
                 THOUGHT: I think here, we're supposed to be requesting a VBlank interrupt...
@@ -155,8 +165,9 @@ public class PPU {
                     // nothings changed..
                 }*/
                 // we run per scanline rather than calling the whole 4560 cycles, so that the LY still increments (might be needed)
+                setStatMode1(true);
                 cpu.runInstructions(456 / 4, true);
-
+                setStatMode1(false); // leave for now, since it will just get reset to on for next iteration.
             }
         }
 
@@ -495,12 +506,12 @@ public class PPU {
 
     // gives us the current horizontal line (0-153). 144-153 indicates VBlank period
     private int getLY() {
-        return memory.readByte(0xFF44);
+        return memory.readByte(LY_ADDRESS);
     }
 
     // GameBoy constantly compares LY-LYC, for a STAT flag
     private int getLYC() {
-        return memory.readByte(0xFF45);
+        return memory.readByte(LYC_ADDRESS);
     }
 
     /**
@@ -508,19 +519,58 @@ public class PPU {
      * This will indicate what mode the PPU should be in, represented by each bit in the byte.
      */
     private int getSTAT() {
-        return memory.readByte(0xFF41);
+        return memory.readByte(STAT_ADDRESS);
     }
 
-    // constant check if LY == LYC and sets the bit
+    /// runs per scanline and requests if needed.
+    private void checkSTATInterrupt() {
+        // the compare is enabled AND we actaully have the same result, then interrupt
+        if (STATBitSixOn() && STATBitTwoOn()) {
+            memory.writeByte(IF_ADDRESS, (short) 0x2); // sets the request for STAT (bit 2)
+        }
+        // TODO: the rest of the modes!!
+    }
+
+    /// for a constant check if LY == LYC and sets the bit
     private void setStatBit2() {
         int stat = getSTAT();
         if (getLY() == getLYC()) {
             // OR the '1' in
-            memory.writeByte(0xFF41, (short) (stat | 0b100));
+            memory.writeByte(STAT_ADDRESS, (short) (stat | 0b100));
         } else {
             // AND the '0' in
-            memory.writeByte(0xFF41, (short) (stat & 0b11111011));
+            memory.writeByte(STAT_ADDRESS, (short) (stat & 0b11111011));
         }
+    }
+
+    // TODO: check if we do the sets manually or not..
+
+    /// Sets bit 3
+    private void setStatMode0(final boolean on) {
+        final int stat = getSTAT();
+        if (on) memory.writeByte(STAT_ADDRESS, (short) (stat | 0b1000));
+        else memory.writeByte(STAT_ADDRESS, (short) (stat & 0b11110111));
+    }
+
+    /// Sets bit 4
+    private void setStatMode1(final boolean on) {
+        final int stat = getSTAT();
+        if (on) memory.writeByte(STAT_ADDRESS, (short) (stat | 0b10000));
+        else memory.writeByte(STAT_ADDRESS, (short) (stat & 0b11101111));
+    }
+
+    /// Sets bit 5
+    private void setStatMode2(final boolean on) {
+        final int stat = getSTAT();
+        if (on) memory.writeByte(STAT_ADDRESS, (short) (stat | 0b100000));
+        else memory.writeByte(STAT_ADDRESS, (short) (stat & 0b11011111));
+    }
+
+    /// Sets bit 6 (ROM & CPU set this itself..)
+    private void setStatLYCSelect(final boolean on) {
+        final int stat = getSTAT();
+        if (on) memory.writeByte(STAT_ADDRESS, (short) (stat | 0b1000000));
+        else memory.writeByte(STAT_ADDRESS, (short) (stat & 0b10111111));
     }
 
     // checks STAT bit 0 and 1 to give what mode out of 3 it's in
@@ -532,21 +582,31 @@ public class PPU {
         }
     }
 
+
     // these all checkers for the STAT interrupt
-    private int checkMode0() {
-        return (getSTAT() & 0b1000) >> 3;
+    /// is LY==LYC enabled?
+    private boolean STATBitTwoOn() {
+        return ((getSTAT() & 0b100) >> 2) == 1;
     }
 
-    private int checkMode1() {
-        return (getSTAT() & 0b10000) >> 4;
+    ///  is Mode 0 select enabled?
+    private boolean STATBitThreeOn() {
+        return ((getSTAT() & 0b1000) >> 3) == 1;
     }
 
-    private int checkMode2() {
-        return (getSTAT() & 0b100000) >> 5;
+    ///  is Mode 1 select enabled?
+    private boolean STATBitFourOn() {
+        return ((getSTAT() & 0b10000) >> 4) == 1;
     }
 
-    private int checkLYC() {
-        return (getSTAT() & 0b1000000) >> 6;
+    ///  is Mode 2 select enabled?
+    private boolean STATBitFiveOn() {
+        return ((getSTAT() & 0b100000) >> 5) == 1;
+    }
+
+    /// is LYC select enabled?
+    private boolean STATBitSixOn() {
+        return ((getSTAT() & 0b1000000) >> 6) == 1;
     }
 
 

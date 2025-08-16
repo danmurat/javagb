@@ -4,11 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="3d99bb93-0256-4e75-8212-af97d2135b8d" name="Changes" comment="displaying gif correctly on github.">
+    <list default="true" id="3d99bb93-0256-4e75-8212-af97d2135b8d" name="Changes" comment="Implemented instruction running before LCD is turned on.&#10;&#10;- fixes our incomplete tiles">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/assets/assets.txt" beforeDir="false" afterPath="$PROJECT_DIR$/assets/assets.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/assets/javagbBootup.gif" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/CPU.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/CPU.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/Memory.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/Memory.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java" afterDir="false" />
@@ -194,7 +192,9 @@
       <workItem from="1755092315066" duration="59000" />
       <workItem from="1755092382480" duration="52000" />
       <workItem from="1755092444532" duration="12761000" />
-      <workItem from="1755162885144" duration="15525000" />
+      <workItem from="1755162885144" duration="16066000" />
+      <workItem from="1755204552579" duration="107000" />
+      <workItem from="1755340497174" duration="21899000" />
     </task>
     <task id="LOCAL-00001" summary="Migration to libGDX project setup">
       <option name="closed" value="true" />
@@ -252,7 +252,15 @@
       <option name="project" value="LOCAL" />
       <updated>1755186843595</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="Implemented instruction running before LCD is turned on.&#10;&#10;- fixes our incomplete tiles">
+      <option name="closed" value="true" />
+      <created>1755203895258</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1755203895258</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -280,7 +288,8 @@
     <MESSAGE value="Timer Interrupt implemented + Memory Bank Controller 1 implemented&#10;&#10;main cpu_instrs test rom passing (is able to bank switch)." />
     <MESSAGE value="Much better synchronising of CPU/PPU.&#10;&#10;- Programme now scrolls boot rom, switches to cartridge rom and runs, all at a proper frame rate" />
     <MESSAGE value="displaying gif correctly on github." />
-    <option name="LAST_COMMIT_MESSAGE" value="displaying gif correctly on github." />
+    <MESSAGE value="Implemented instruction running before LCD is turned on.&#10;&#10;- fixes our incomplete tiles" />
+    <option name="LAST_COMMIT_MESSAGE" value="Implemented instruction running before LCD is turned on.&#10;&#10;- fixes our incomplete tiles" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -289,6 +298,12 @@
           <properties class="java.lang.ArrayIndexOutOfBoundsException" package="java.lang" />
           <option name="timeStamp" value="30" />
         </breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <condition expression="renderCounter == 333" language="JAVA" />
+          <url>file://$PROJECT_DIR$/core/src/main/java/j/gb/Run.java</url>
+          <line>92</line>
+          <option name="timeStamp" value="43" />
+        </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
   </component>

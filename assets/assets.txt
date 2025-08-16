@@ -1,4 +1,5 @@
-.log.txt.swp
-javagbBootup.gif
+bootup.gif
+dmgacid statInterrupt.png
+dmgacid.png
 libgdx.png
 log.txt

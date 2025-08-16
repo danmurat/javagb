@@ -54,7 +54,7 @@ public class Run extends ApplicationAdapter {
 
         try {
             //memory = new Memory("boot.bin");
-            memory = new Memory("cpu_instrs.gb");
+            memory = new Memory("dmg-acid2.gb");
              /* NOTE: individual roms will throw exceptions now. (PC out of bounds)
                 This is due to these roms identifying as MBC1, even
                 when they still only have 2 banks (can fit in gb)
@@ -83,9 +83,13 @@ public class Run extends ApplicationAdapter {
 
         //if (renderCounter == 0) memory.hexDumpRomContents();
 
-        // screen will be black until lcd turns on
+        // screen remains blank (whitish) until lcd turns on
         final boolean lcdOff = memory.getLCDCbit7() == 0;
-        if (lcdOff) cpu.screenOffInstructionRun();
+        if (lcdOff) {
+            memory.setVramAccessible(true);
+            memory.setOamAccessible(true);
+            cpu.screenOffInstructionRun();
+        }
         else lcd = ppu.renderScreen(); // runs instructions inside for cycle accuracy/sync
 
 
@@ -104,6 +108,7 @@ public class Run extends ApplicationAdapter {
 */
 
         renderCounter++;
+ //       System.out.println(renderCounter);
 
         /*
         This is finally showing us a SCREEN!!!
@@ -119,16 +124,30 @@ public class Run extends ApplicationAdapter {
 
         Then we can finish properly implementing the ppu so stuff appears properly on the screen!
          */
-       for (int y = 0; y < WORLD_HEIGHT; y++) {
-            for (int x = 0; x < WORLD_WIDTH; x++) {
-                try {
-                    pixmap.setColor(get2bitColour(lcd[y][x]));
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
+        if (!lcdOff) {
+            for (int y = 0; y < WORLD_HEIGHT; y++) {
+                for (int x = 0; x < WORLD_WIDTH; x++) {
+                    try {
+                        pixmap.setColor(get2bitColour(lcd[y][x]));
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                    pixmap.drawPixel(x, y);
                 }
-                pixmap.drawPixel(x, y);
+            }
+        } else { // black screen
+            for (int y = 0; y < WORLD_HEIGHT; y++) {
+                for (int x = 0; x < WORLD_WIDTH; x++) {
+                    try {
+                        pixmap.setColor(Color.BLACK);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                    pixmap.drawPixel(x, y);
+                }
             }
         }
+
 
        // filling tilemaps
 /*

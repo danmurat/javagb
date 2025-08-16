@@ -85,10 +85,13 @@ public class Memory {
         System.out.println("Full cartridge rom loaded.");
         fillBootRomData();
         System.out.println("$0-ff address range swapped with boot rom data.");
-
         // below is for running/testing boot rom only
         //loadBootRomOnly();
 
+        // below is for running cartridge only (remember to re-set cpu registers from 0x100, etc..)
+      /*  loadBootAndHeader(romName);
+        loadRom(romName);
+        mbcSetup(); // we don't fill boot data*/
     }
 
     /**

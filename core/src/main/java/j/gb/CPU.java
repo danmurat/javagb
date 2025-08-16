@@ -244,6 +244,7 @@ public class CPU {
      * Reads opcode, finds and runs correct instruction.
      */
     private void executeInstruction() {
+        //System.out.println("PC = " + Integer.toHexString(PC)); // debugging
         //instructionCounter++;
         //logState();
         // opcode is the value at the memory address specified by program counter
@@ -256,14 +257,22 @@ public class CPU {
             currentOpcode = opcode; // DEBUG STATEMENT (a global opcode)
             instructionCall(opcode);
         } else {
-            /*if (IME) {
-                interruptHandle(); // this shouldn't execute...
-            }*/
             final short opcode = memory.readByte(PC);
             instructionCall(opcode);
-            // this makes ei turn IME on AFTER the next instruction is finished
-            IME = true;
-            eiTurnImeOn = false;
+            /*
+            This makes IME on AFTER the next non-halt instruction is finished.
+
+            HALT handles this in it's own way. Since it can be stuck in a version of while looping, waiting for
+            an interrupt. But instead of actually while looping, we just finish the method without incrementing PC
+            so we re-do HALT again, until an interrupt pends.
+            Because it actually finishes the method, below would otherwise set IME true before we intend HALT to
+            actually finish (it can still be in the version of while looping) thus attempting to handle the interrupt
+            before the HALT instr.
+             */
+            if (opcode != 0x76) {
+                IME = true;
+                eiTurnImeOn = false;
+            }
         }
 
         /* TODO:
@@ -1680,21 +1689,34 @@ public class CPU {
         // Enters low power state until interrupt occurs
         if (IME) {
             interruptHandle(); // TODO: not 100% sure this is correct
-        } else if (!IME && !pendingInterrupts) {
+        } else if (!IME && !pendingInterrupts) { // only handles timer interrupts, since if not pending, it will eventaully
             // the low power state (we wait until interrupt happens)
-            while (!pendingInterrupts) {
-                memory.handleDIVIncrement(totalMCycles);
-                memory.handleTIMAIncrement(totalMCycles);
-                totalMCycles += 1;
-                pendingInterrupts = (memory.getIF() & memory.getIE()) != 0; // then re-check to potentially exit
-                // INTERRUPTS NOW PASS THE TEST!!!
-            }
+            // while (!pendingInterrupts) {
+
+            /* Instead of while looping, we just finish the method without incrementing PC. Next instruction will
+               be this again (re-checking pendingInterrupts). We're while looping without a while loop. */
+            memory.handleDIVIncrement(totalMCycles);
+            memory.handleTIMAIncrement(totalMCycles);
+            totalMCycles += 1;
+
+            //pendingInterrupts = (memory.getIF() & memory.getIE()) != 0; // then re-check to potentially exit
+            // INTERRUPTS NOW PASS THE TEST!!!
+            //}
         } else if (!IME && pendingInterrupts) {
             // TODO
             // potentially implement the HALT bug here? PC byte is read twice (since bug doesn't increment PC)
+
+            PC += 1;
+            /*
+            If prev instr was EI (enabling interrupts), the effect is delayed one instruction.
+            So we set it here when we exit halt (for the next instruction to recognise IME).
+            */
+            if (eiTurnImeOn) {
+                eiTurnImeOn = false;
+                IME = true;
+            }
         }
 
-        PC += 1;
     }
 
     // disable interrupts
