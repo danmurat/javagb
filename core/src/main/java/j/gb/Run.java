@@ -40,6 +40,9 @@ public class Run extends ApplicationAdapter {
     private int[][] tilemap1;
     private int[][] tilemap2;
 
+    // comment just to test submaster branch
+
+
 
     /**
      * Create "loads" everything for us when game starts
@@ -83,7 +86,6 @@ public class Run extends ApplicationAdapter {
 
         //if (renderCounter == 0) memory.hexDumpRomContents();
 
-        // screen remains blank (whitish) until lcd turns on
         final boolean lcdOff = memory.getLCDCbit7() == 0;
         if (lcdOff) {
             memory.setVramAccessible(true);
