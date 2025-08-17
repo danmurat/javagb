@@ -1709,7 +1709,7 @@ public class CPU {
             PC += 1;
             /*
             If prev instr was EI (enabling interrupts), the effect is delayed one instruction.
-            So we set it here when we exit halt (for the next instruction to recognise IME).
+            So we set it here when we exit halt (so we handle an interrupt when this ends).
             */
             if (eiTurnImeOn) {
                 eiTurnImeOn = false;
