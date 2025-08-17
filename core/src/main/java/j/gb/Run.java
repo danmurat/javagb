@@ -40,9 +40,6 @@ public class Run extends ApplicationAdapter {
     private int[][] tilemap1;
     private int[][] tilemap2;
 
-    // comment just to test submaster branch
-
-
 
     /**
      * Create "loads" everything for us when game starts

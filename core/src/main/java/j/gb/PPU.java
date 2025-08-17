@@ -97,13 +97,18 @@ public class PPU {
 
             // we have 460 dots per scanline (dot = T-cycle)
             if (scanline < 144) {
-                // run mode2 (80 dots cycle)
+                // for drawPixel() to potentially deal with
+                ArrayList<Integer> scanlineObjs = scanlineObjectSelection();
+
+                /* run mode2 (80 dots cycle) */
                 setStatMode2(true); // TODO: there may be no need to set this manually..
                 memory.setOamAccessible(false);
                 cpu.runInstructions(80 / 4, true); // div by 4 to get M-cycles
                 setStatMode2(false);
 
-                // mode 3 (172-289 dots). We must iterate this time to deal with the varying dots
+                /* mode 3 (172-289 dots). We must iterate this time to deal with the varying dots */
+                bgFIFO.clear();
+                objFIFO.clear();
                 memory.setVramAccessible(false);
                 int dots = 0;
                 int mode3RequiredDots = 172; // max width + 12 dots
@@ -140,7 +145,7 @@ public class PPU {
                      */
                     if (penaltyCount == 0) {
                         final int xPos = dots - penaltyAccumulator;
-                        drawPixel(xPos, scanline, screen);
+                        drawPixel(xPos, scanline, scanlineObjs);
                     } else {
                         penaltyCount--;
                     }
@@ -148,14 +153,14 @@ public class PPU {
                     dots++; //
                 }
 
-                // mode0 HBlank (lasts for the remaining number of dots left)
+                /* mode0 HBlank (lasts for the remaining number of dots left) */
                 setStatMode0(true);
                 memory.setOamAccessible(true);
                 memory.setVramAccessible(true);
                 final int remainingCycles = 460 - 80 - dots;
                 cpu.runInstructions(remainingCycles / 4, true);
                 setStatMode0(false);
-            } else { // finally VBlank
+            } else { /* finally VBlank */
                  /*
                 THOUGHT: I think here, we're supposed to be requesting a VBlank interrupt...
                  */
@@ -177,13 +182,48 @@ public class PPU {
     /**
      * Fills the screen array with a single pixel whilst in mode 3 of rendering.
      */
-    private void drawPixel(final int x, final int y, final int[][] screen) {
-        // only accepts when empty
-        if (bgFIFO.isEmpty()) {
-            bgFIFO = pixelFetcher(x, y);
+    private void drawPixel(final int x, final int y, final ArrayList<Integer> scanlineObjs) {
+        /*
+        We need to start adding in objects too. As long as LCDC.1 is on AND there's an object on the
+        x position, we'll fetch and draw the object.
+         */
+        int penaltyAccum = 0;
+        int objNum = -1; // negative tells us no object was found.
+
+        // check if there's any object in the way first
+        for (int i : scanlineObjs) {
+            final int objectX = getObjectOAM(i)[1]; // we might benefit from getting OAM info from outside this method too..
+            final int scx = getSCX();
+
+            // deal with the first big penalty if exists
+            if (objectX == 0 && (scx & 7) > 0) {
+                penaltyAccum += scx & 0b111;
+                penaltyAccum += 3; // step 2
+                if (memory.getLCDCbit1() == 0) return; // early cancellation check
+            }
+
+            // when screen x is within the objs tile (8 wide)
+            if (objectX <= x && x < (objectX + 8)) {
+                objNum = i;
+                break; // TODO: overlapping oams. This wants just 1
+            }
         }
 
-        screen[y][x] = bgFIFO.pop();
+
+        // fill obj or bg
+        if (memory.getLCDCbit1() == 1 && objNum != -1) {
+            if (objFIFO.isEmpty()) objFIFO = pixelFetcherObj(y, objNum);
+            screen[y][x] = objFIFO.remove();
+            penaltyAccum += 1; // step 1 (step 2 in panDocs kind of has to be done first here, to check for objs)
+        } else {
+            if (bgFIFO.isEmpty()) bgFIFO = pixelFetcher(x, y);
+            screen[y][x] = bgFIFO.remove();
+        }
+
+        // bg only..
+      /*if (bgFIFO.isEmpty()) bgFIFO = pixelFetcher(x, y);
+        screen[y][x] = bgFIFO.remove();
+        */
     }
 
     /*
@@ -194,7 +234,7 @@ public class PPU {
      TODO: scanlineX is never off screen!! we're just passing vals within the screen!
      */
     private ArrayDeque<Integer> pixelFetcher(final int scanlineXPos, final int scanlineYPos) {
-        // row of 8 bg/w pixels
+        // row of 8 bg/w pixels. What about objs?
 
         // 5 steps
         // - get tile
@@ -277,6 +317,68 @@ public class PPU {
         return rowOfPixels;
     }
 
+    /// routes to correct address for an object row. basically a getTileRow() for objs
+    private ArrayDeque<Integer> pixelFetcherObj(final int y, final int objNum) {
+        int[] dataRow;
+        int penaltyAccum = 0;
+        final int[] objOam = getObjectOAM(objNum); // can we pass this info beforehand?
+        int tileAddress1 = 0x8000;
+        int tileAddress2 = 0x8000; // for 8x16 objs
+        final boolean is8x8 = memory.getLCDCbit2() == 0;
+
+        // obj access vars that will help
+        final int objTileIndex = objOam[2]; // x0-ff (255)
+        final int objYPos = objOam[0];
+        //final int tileRow = y - objYPos; // how far away from top in rows (should be 0-15)
+        final int tileRow = y % 8; // testing
+
+        if (is8x8) {
+            tileAddress1 += objTileIndex * 16; /* 0-ff * 16 gives us start of tile address (1 tile = 16 addresses)
+                                              ff * 16 = ff0 (ff0-fff is the final tile). */
+            // row = 0-7, a single tilerow is 2 address'. So row*2 gives us correct row (row0 = addr0 and addr1)
+            final int adjustedRow = tileRow * 2;
+            dataRow = computeTileRow(tileAddress1 + adjustedRow);
+        } else {
+            tileAddress1 += (objTileIndex & 0xFE) * 16; // 8x16's ignores bit0 for the first tile and slots in 1 for the second
+            tileAddress2 += (objTileIndex | 0x1) * 16;  // this guarantees 2 different locations for top/bottom
+            if (tileRow <= 7) {
+                final int adjustedRow = tileRow * 2;
+                dataRow = computeTileRow(tileAddress1 + adjustedRow);
+            } else {
+                final int adjustedRow = (tileRow % 8) * 2; // treat 8-15 like 0-7.
+                dataRow = computeTileRow(tileAddress2 + adjustedRow);
+            }
+        }
+
+        penaltyAccum += 1; // mode3 lengthened by 1 on lower byte fetch. We're doing after full fetch however.
+        // TODO: find a way to handle returning extra penalties
+        //if (memory.getLCDCbit1() == 0) return penaltyAccum + 1; // last chance to cancel (cancelling adds extra dot)
+
+        /* https://gbdev.io/pandocs/pixel_fifo.html#sprites
+           I can't lie and pretend that this is easy to understand, but I'm trying!
+           I think i've kind of got a lot of what we need to do down. But there's a few bits i'm unsure of:
+
+           - VRAM access check: ppu may not be able to access vram in some situations, but we simply don't access vram
+             unless we're drawing (we can't draw when lcd is off, or we switched from mode3 to mode0 and don't draw anyway)
+             This makes it sound like the pixelFetcher should still be running in these cases???
+
+           - Apparantly we're supposed to fill the objFIFO with white pixels if there's < 8 pixels in FIFO,
+             then compare against the pixels from our object and replace objFifo pixel with obj pixel if obj is not
+             white or has lower priority... White is lowest priority (0). I guess the docs mean swap if obj has a
+             higher priority, since you can't get any lower than 0..
+             Further, what's the point in all of this? Why can't we just fill the tileRowData and push it to FIFO? The
+             un-needed pixels should be 0 anyway? This all just seems like extra work for no reason?
+         */
+
+        // we'll just push what we've got from pixelRow. May not be completely correct as per above.
+        ArrayDeque<Integer> rowOfPixels = new ArrayDeque<>();
+        for (int i : dataRow) {
+            rowOfPixels.add(dataRow[i]);
+        }
+
+        return rowOfPixels;
+    }
+
     /*
     Object Attribute Memory. OAM. The extra info for object are stored at $FE00-FE9F.
     We can only display up to 40 objects at once, so this mem address should hold max 40.
@@ -296,20 +398,20 @@ public class PPU {
 
     // per scanline (up to 10 objects max). We'll return an array holding the object's numbers that we've selected
     private ArrayList<Integer> scanlineObjectSelection() {
-        ArrayList<Integer> selectedObjs = new ArrayList<>(); // TODO: make sure this isn't too much a performance hit
+        ArrayList<Integer> selectedObjs = new ArrayList<>();
 
         // we need to go through each object's OAM and select based of their Y position (to LY)
-        final int LY = getLY(); // current horizontal scanline
+        final int LY = getLY() + 16; // Top of screen starts at 16 for objs: https://gbdev.io/pandocs/OAM.html
 
         // this will determine size, but do we really need to check that in here?
-        final int checkObjSize = memory.getLCDCbit2(); // TODO: what do we really need this for?
+        final int checkObjSize = memory.getLCDCbit2(); // TODO: use this with checking yPos+8 or yPos+16 below
 
         // we loop through all oam's sequentially, check if their yPos = LY, then add to selected if so
         for (int i = 0; i < 40; i++) {
             final int[] oamInfo = getObjectOAM(i);
             final int yPos = oamInfo[0];
             final int xPos = oamInfo[1];
-            if (!isOffScreenX(xPos) && yPos == LY) {
+            if (!isOffScreenX(xPos) && (yPos <= LY && LY < (yPos + 8))) { // if LY is within 8+ pixels TODO: (what about 8x16s?)
                 selectedObjs.add(i);
             }
             if (selectedObjs.size() == 10) break;
