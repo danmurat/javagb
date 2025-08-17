@@ -1,4 +1,5 @@
 bootup.gif
+dmgacid spriteAttempt.png
 dmgacid statInterrupt.png
 dmgacid.png
 libgdx.png

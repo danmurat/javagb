@@ -4,9 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="3d99bb93-0256-4e75-8212-af97d2135b8d" name="Changes" comment="Big bug fixes:&#10;&#10;- HALT. Our screen will now continue to render when cpu halts.&#10;&#10;- We now handle the LY=LYC STAT interrupt. (more to do)">
+    <list default="true" id="3d99bb93-0256-4e75-8212-af97d2135b8d" name="Changes" comment="Implemented instruction running before LCD is turned on.&#10;&#10;- fixes our incomplete tiles">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/CPU.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/CPU.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/assets/assets.txt" beforeDir="false" afterPath="$PROJECT_DIR$/assets/assets.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/Memory.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/Memory.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/Run.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/Run.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -156,6 +158,7 @@
     <recent_temporary>
       <list>
         <item itemvalue="Gradle.javagb:lwjgl3 [run]" />
+        <item itemvalue="Gradle.javagb:lwjgl3 [run]" />
       </list>
     </recent_temporary>
   </component>
@@ -196,8 +199,7 @@
       <workItem from="1755092444532" duration="12761000" />
       <workItem from="1755162885144" duration="16066000" />
       <workItem from="1755204552579" duration="107000" />
-      <workItem from="1755340497174" duration="23156000" />
-      <workItem from="1755430750734" duration="186000" />
+      <workItem from="1755340497174" duration="21899000" />
     </task>
     <task id="LOCAL-00001" summary="Migration to libGDX project setup">
       <option name="closed" value="true" />
@@ -263,15 +265,7 @@
       <option name="project" value="LOCAL" />
       <updated>1755203895258</updated>
     </task>
-    <task id="LOCAL-00009" summary="Big bug fixes:&#10;&#10;- HALT. Our screen will now continue to render when cpu halts.&#10;&#10;- We now handle the LY=LYC STAT interrupt. (more to do)">
-      <option name="closed" value="true" />
-      <created>1755375616034</created>
-      <option name="number" value="00009" />
-      <option name="presentableId" value="LOCAL-00009" />
-      <option name="project" value="LOCAL" />
-      <updated>1755375616034</updated>
-    </task>
-    <option name="localTasksCounter" value="10" />
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -300,8 +294,7 @@
     <MESSAGE value="Much better synchronising of CPU/PPU.&#10;&#10;- Programme now scrolls boot rom, switches to cartridge rom and runs, all at a proper frame rate" />
     <MESSAGE value="displaying gif correctly on github." />
     <MESSAGE value="Implemented instruction running before LCD is turned on.&#10;&#10;- fixes our incomplete tiles" />
-    <MESSAGE value="Big bug fixes:&#10;&#10;- HALT. Our screen will now continue to render when cpu halts.&#10;&#10;- We now handle the LY=LYC STAT interrupt. (more to do)" />
-    <option name="LAST_COMMIT_MESSAGE" value="Big bug fixes:&#10;&#10;- HALT. Our screen will now continue to render when cpu halts.&#10;&#10;- We now handle the LY=LYC STAT interrupt. (more to do)" />
+    <option name="LAST_COMMIT_MESSAGE" value="Implemented instruction running before LCD is turned on.&#10;&#10;- fixes our incomplete tiles" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -311,10 +304,9 @@
           <option name="timeStamp" value="30" />
         </breakpoint>
         <line-breakpoint enabled="true" type="java-line">
-          <condition expression="renderCounter == 333" language="JAVA" />
-          <url>file://$PROJECT_DIR$/core/src/main/java/j/gb/Run.java</url>
-          <line>94</line>
-          <option name="timeStamp" value="43" />
+          <url>file://$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java</url>
+          <line>338</line>
+          <option name="timeStamp" value="44" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

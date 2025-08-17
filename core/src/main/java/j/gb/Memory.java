@@ -135,48 +135,48 @@ public class Memory {
         return externalRam;
     }
 
-    // this indicates whether what mode we access in VRAM
+    /// this indicates whether what mode we access in VRAM
     public int getLCDCbit0() {
         return LCDC & 0x01;
     }
 
-    // object enable
+    /// object enable
     public int getLCDCbit1() {
         final int bit1 = 0b10;
         return (LCDC & bit1) >> 1;
     }
 
-    // determines the object size. If on, obj will be 8x16 instead.
+    /// determines the object size. If on, obj will be 8x16 instead.
     public int getLCDCbit2() {
         final int bit2 = 0b100;
         return (LCDC & bit2) >> 2;
     }
 
-    // background tile map area: if 0, area = $9800, 1 = $9C00
+    /// background tile map area: if 0, area = $9800, 1 = $9C00
     public int getLCDCbit3() {
         final int bit3 = 0b1000;
         return (LCDC & bit3) >> 3;
     }
 
-    // determines the addressing mode for getting background/window tiles
+    /// determines the addressing mode for getting background/window tiles
     public int getLCDCbit4() {
         final int bit4 = 0b10000;
         return (LCDC & bit4) >> 4;
     }
 
-    // indicates wether the window is displayed
+    /// indicates wether the window is displayed
     public int getLCDCbit5() {
         final int bit5 = 0b100000;
         return (LCDC & bit5) >> 5;
     }
 
-    // window tile map area: if 0, area = $9800, else $9C00 (like bit3 above)
+    /// window tile map area: if 0, area = $9800, else $9C00 (like bit3 above)
     public int getLCDCbit6() {
         final int bit6 = 0b1000000;
         return (LCDC & bit6) >> 6;
     }
 
-    // LCD enable bit, to check if screen should be on or not
+    /// LCD enable bit, to check if screen should be on or not
     public int getLCDCbit7() {
         final int bit7 = 0b10000000;
         return (LCDC & bit7) >> 7;
