@@ -4,12 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="3d99bb93-0256-4e75-8212-af97d2135b8d" name="Changes" comment="Implemented instruction running before LCD is turned on.&#10;&#10;- fixes our incomplete tiles">
+    <list default="true" id="3d99bb93-0256-4e75-8212-af97d2135b8d" name="Changes" comment="Little progress on rendering Objects.&#10;&#10;- determines whether to render an object's pixel&#10;- routes and retrieves objects tile data">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/assets/assets.txt" beforeDir="false" afterPath="$PROJECT_DIR$/assets/assets.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/Memory.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/Memory.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/Run.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/Run.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -265,7 +262,15 @@
       <option name="project" value="LOCAL" />
       <updated>1755203895258</updated>
     </task>
-    <option name="localTasksCounter" value="9" />
+    <task id="LOCAL-00009" summary="Little progress on rendering Objects.&#10;&#10;- determines whether to render an object's pixel&#10;- routes and retrieves objects tile data">
+      <option name="closed" value="true" />
+      <created>1755457580353</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1755457580353</updated>
+    </task>
+    <option name="localTasksCounter" value="10" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -294,7 +299,8 @@
     <MESSAGE value="Much better synchronising of CPU/PPU.&#10;&#10;- Programme now scrolls boot rom, switches to cartridge rom and runs, all at a proper frame rate" />
     <MESSAGE value="displaying gif correctly on github." />
     <MESSAGE value="Implemented instruction running before LCD is turned on.&#10;&#10;- fixes our incomplete tiles" />
-    <option name="LAST_COMMIT_MESSAGE" value="Implemented instruction running before LCD is turned on.&#10;&#10;- fixes our incomplete tiles" />
+    <MESSAGE value="Little progress on rendering Objects.&#10;&#10;- determines whether to render an object's pixel&#10;- routes and retrieves objects tile data" />
+    <option name="LAST_COMMIT_MESSAGE" value="Little progress on rendering Objects.&#10;&#10;- determines whether to render an object's pixel&#10;- routes and retrieves objects tile data" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -305,7 +311,7 @@
         </breakpoint>
         <line-breakpoint enabled="true" type="java-line">
           <url>file://$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java</url>
-          <line>338</line>
+          <line>339</line>
           <option name="timeStamp" value="44" />
         </line-breakpoint>
       </breakpoints>
