@@ -1,4 +1,5 @@
 bootup.gif
+dmgac hllwrldFix.png
 dmgacid spriteAttempt.png
 dmgacid statInterrupt.png
 dmgacid.png

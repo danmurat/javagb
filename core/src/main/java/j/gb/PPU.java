@@ -129,23 +129,13 @@ public class PPU {
                         cpu.resetTotalMCycles();
                     }
                     mode3RunDotsCount--;
-                    /*
-                    Below, we're directly translating the dot number to the pixel X position, which isn't correct.
-                    I think, depending on the penalty that has occured, we'll have to subtract by the accumulated penalty.
-                    For example, if we've accumulated the max penalties (our dots reaches 289) we will be drawing at
-                    pixelX 160.
 
-                    PROBLEM. If the requiredDots increases, then drawPixel will be called an
-                    increasing amount of times!!
-                    We need a way of running drawPixels() 160 times ONLY, but the runInstructions() to run for the required
-                    amount of times.
-
-                    something like, if (penaltyCount == 0) drawPixel(),
-                                    else penaltyCount-- // until we pass the dot iterations
-                     */
+                    // no drawing until sufficient amount of dots pass (for penalties)
                     if (penaltyCount == 0) {
-                        final int xPos = dots - penaltyAccumulator;
-                        drawPixel(xPos, scanline, scanlineObjs);
+                        final int xPos = dots - penaltyAccumulator;             // adjusted by the penalties incurred
+                        penaltyCount = drawPixel(xPos, scanline, scanlineObjs);
+                        penaltyAccumulator += penaltyCount;                     // increase acc + reqDots by pen incurred
+                        mode3RequiredDots += penaltyCount;
                     } else {
                         penaltyCount--;
                     }
@@ -180,9 +170,10 @@ public class PPU {
     }
 
     /**
-     * Fills the screen array with a single pixel whilst in mode 3 of rendering.
+     * Fills the screen array with a single pixel whilst in mode 3 of rendering. <br>
+     * Returns potential render penalties incurred in dots.
      */
-    private void drawPixel(final int x, final int y, final ArrayList<Integer> scanlineObjs) {
+    private int drawPixel(final int x, final int y, final ArrayList<Integer> scanlineObjs) {
         /*
         We need to start adding in objects too. As long as LCDC.1 is on AND there's an object on the
         x position, we'll fetch and draw the object.
@@ -199,7 +190,7 @@ public class PPU {
             if (objectX == 0 && (scx & 7) > 0) {
                 penaltyAccum += scx & 0b111;
                 penaltyAccum += 3; // step 2
-                if (memory.getLCDCbit1() == 0) return; // early cancellation check
+                if (memory.getLCDCbit1() == 0) return penaltyAccum; // early cancellation check
             }
 
             // when screen x is within the objs tile (8 wide)
@@ -224,6 +215,8 @@ public class PPU {
       /*if (bgFIFO.isEmpty()) bgFIFO = pixelFetcher(x, y);
         screen[y][x] = bgFIFO.remove();
         */
+
+        return penaltyAccum;
     }
 
     /*
@@ -330,15 +323,17 @@ public class PPU {
         final int objTileIndex = objOam[2]; // x0-ff (255)
         final int objYPos = objOam[0];
         //final int tileRow = y - objYPos; // how far away from top in rows (should be 0-15)
-        final int tileRow = y % 8; // testing
+        //final int tileRow = y % 8; // testing
 
         if (is8x8) {
             tileAddress1 += objTileIndex * 16; /* 0-ff * 16 gives us start of tile address (1 tile = 16 addresses)
                                               ff * 16 = ff0 (ff0-fff is the final tile). */
+            final int tileRow = y % 8;
             // row = 0-7, a single tilerow is 2 address'. So row*2 gives us correct row (row0 = addr0 and addr1)
             final int adjustedRow = tileRow * 2;
             dataRow = computeTileRow(tileAddress1 + adjustedRow);
         } else {
+            final int tileRow = y % 16; // out of 16 rows..
             tileAddress1 += (objTileIndex & 0xFE) * 16; // 8x16's ignores bit0 for the first tile and slots in 1 for the second
             tileAddress2 += (objTileIndex | 0x1) * 16;  // this guarantees 2 different locations for top/bottom
             if (tileRow <= 7) {
@@ -370,10 +365,14 @@ public class PPU {
              un-needed pixels should be 0 anyway? This all just seems like extra work for no reason?
          */
 
+        // handle pallete swapping
+        final int oamFlags = objOam[3];
+        final int[] adjustedDataRow = objectPalleteSwap(oamFlags, dataRow);
+
         // we'll just push what we've got from pixelRow. May not be completely correct as per above.
         ArrayDeque<Integer> rowOfPixels = new ArrayDeque<>();
-        for (int i : dataRow) {
-            rowOfPixels.add(dataRow[i]);
+        for (int i : adjustedDataRow) {
+            rowOfPixels.add(i);
         }
 
         return rowOfPixels;
@@ -404,16 +403,19 @@ public class PPU {
         final int LY = getLY() + 16; // Top of screen starts at 16 for objs: https://gbdev.io/pandocs/OAM.html
 
         // this will determine size, but do we really need to check that in here?
-        final int checkObjSize = memory.getLCDCbit2(); // TODO: use this with checking yPos+8 or yPos+16 below
+        final boolean is8x8 = memory.getLCDCbit2() == 0;
 
         // we loop through all oam's sequentially, check if their yPos = LY, then add to selected if so
         for (int i = 0; i < 40; i++) {
             final int[] oamInfo = getObjectOAM(i);
             final int yPos = oamInfo[0];
-            final int xPos = oamInfo[1];
-            if (!isOffScreenX(xPos) && (yPos <= LY && LY < (yPos + 8))) { // if LY is within 8+ pixels TODO: (what about 8x16s?)
+            // selection only cares for y pos (so off screen objs can fill this list up too!)
+            if (is8x8 && (yPos <= LY && LY < (yPos + 8))) { // if LY is within 8+ pixels
+                selectedObjs.add(i);
+            } else if (!is8x8 && (yPos <= LY && LY < (yPos + 16))) { // for 8x16s
                 selectedObjs.add(i);
             }
+
             if (selectedObjs.size() == 10) break;
         }
 
@@ -472,6 +474,39 @@ public class PPU {
         oamInfo[3] = attributes;
 
         return oamInfo;
+    }
+
+    /**
+     * Will properly colour the pixels based off the pallete data.
+     * TODO: add a check to see if this swap is even necessery (save us from unecessarily running this)
+     */
+    private int[] objectPalleteSwap(final int oamFlags, final int[] dataRow) {
+        int palleteAddr;
+        int oamPallete = (oamFlags & 0b10000) >> 4;
+        if (oamPallete == 0) palleteAddr = 0xFF48; // OBP0
+        else palleteAddr = 0xFF49; // OBP1
+
+        final int palleteData = memory.readByte(palleteAddr);
+        final int black = palleteData >> 6;
+        final int darkGrey = (palleteData >> 4) & 0x3; // keep the least 2 bits
+        final int lightGrey = (palleteData >> 2) & 0x3;
+        // white is ignored
+        // loop through 8 pixels, and swap the 'og' colours with this new pallete
+        for (int i = 0; i < dataRow.length; i++) {
+            if (dataRow[i] == 3) dataRow[i] = black;
+            else if (dataRow[i] == 2) dataRow[i] = darkGrey;
+            else if (dataRow[i] == 1) dataRow[i] = lightGrey;
+        }
+       /* Not sure if og colour becomes the new colour? Or that the new colour becomes the og.
+       The result should be the same... But our emu shows some objects looking different!!
+       Keep for now..
+       for (int i = 0; i < dataRow.length; i++) {
+            if (dataRow[i] == black) dataRow[i] = 3;
+            else if (dataRow[i] == darkGrey) dataRow[i] = 2;
+            else if (dataRow[i] == lightGrey) dataRow[i] = 1;
+        }*/
+
+        return dataRow;
     }
 
 
