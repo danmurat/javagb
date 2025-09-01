@@ -4,10 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="3d99bb93-0256-4e75-8212-af97d2135b8d" name="Changes" comment="Bug fix + palletes&#10;&#10;- fixed a for-each loop access that was pushing the elements index instead of the element into the objFIFO&#10;&#10;- new palleteSwap method to adjust the pixel colours depending on pallete used.">
+    <list default="true" id="3d99bb93-0256-4e75-8212-af97d2135b8d" name="Changes" comment="Fixed objects positioning.&#10;&#10;- Objects were positioned 1 extra tile to the right since we didn't consider the starting point of the screen (x=8 screen start, x=168 screen end).">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/Run.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/Run.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -199,7 +198,7 @@
       <workItem from="1755204552579" duration="107000" />
       <workItem from="1755340497174" duration="21899000" />
       <workItem from="1755550998925" duration="1688000" />
-      <workItem from="1756731489159" duration="2995000" />
+      <workItem from="1756731489159" duration="3556000" />
     </task>
     <task id="LOCAL-00001" summary="Migration to libGDX project setup">
       <option name="closed" value="true" />
@@ -289,7 +288,15 @@
       <option name="project" value="LOCAL" />
       <updated>1755538962897</updated>
     </task>
-    <option name="localTasksCounter" value="12" />
+    <task id="LOCAL-00012" summary="Fixed objects positioning.&#10;&#10;- Objects were positioned 1 extra tile to the right since we didn't consider the starting point of the screen (x=8 screen start, x=168 screen end).">
+      <option name="closed" value="true" />
+      <created>1756737347825</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1756737347825</updated>
+    </task>
+    <option name="localTasksCounter" value="13" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -320,7 +327,8 @@
     <MESSAGE value="Implemented instruction running before LCD is turned on.&#10;&#10;- fixes our incomplete tiles" />
     <MESSAGE value="Little progress on rendering Objects.&#10;&#10;- determines whether to render an object's pixel&#10;- routes and retrieves objects tile data" />
     <MESSAGE value="Bug fix + palletes&#10;&#10;- fixed a for-each loop access that was pushing the elements index instead of the element into the objFIFO&#10;&#10;- new palleteSwap method to adjust the pixel colours depending on pallete used." />
-    <option name="LAST_COMMIT_MESSAGE" value="Bug fix + palletes&#10;&#10;- fixed a for-each loop access that was pushing the elements index instead of the element into the objFIFO&#10;&#10;- new palleteSwap method to adjust the pixel colours depending on pallete used." />
+    <MESSAGE value="Fixed objects positioning.&#10;&#10;- Objects were positioned 1 extra tile to the right since we didn't consider the starting point of the screen (x=8 screen start, x=168 screen end)." />
+    <option name="LAST_COMMIT_MESSAGE" value="Fixed objects positioning.&#10;&#10;- Objects were positioned 1 extra tile to the right since we didn't consider the starting point of the screen (x=8 screen start, x=168 screen end)." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

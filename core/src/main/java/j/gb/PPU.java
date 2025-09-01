@@ -184,8 +184,7 @@ public class PPU {
 
         // check if there's any object in the way first
         for (int i : scanlineObjs) {
-            // x - 8, since the screen starts at x=8 for objects (so x=0 is hidden!)
-            final int objectX = getObjectOAM(i)[1] - 8; // we might benefit from getting OAM info from outside this method too..
+            final int objectX = getObjectOAM(i)[1]; // we might benefit from getting OAM info from outside this method too..
             final int scx = getSCX();
 
             // deal with the first big penalty if exists
@@ -195,8 +194,10 @@ public class PPU {
                 if (memory.getLCDCbit1() == 0) return penaltyAccum; // early cancellation check
             }
 
+            // for objs, screen starts/ends at x=8,x=168. If objX = 8, then it should appear at x=0 on screen
+            final int adjustedObjectX = objectX - 8;
             // when screen x is within the objs tile (8 wide)
-            if (objectX <= x && x < (objectX + 8)) {
+            if (adjustedObjectX <= x && x < (adjustedObjectX + 8)) {
                 objNum = i;
                 break; // TODO: overlapping oams. This wants just 1
             }
