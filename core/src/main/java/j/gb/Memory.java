@@ -146,7 +146,7 @@ public class Memory {
         return (LCDC & bit1) >> 1;
     }
 
-    /// determines the object size. If on, obj will be 8x16 instead.
+    /// determines ALL objects size's. If on, objs will be 8x16 instead.
     public int getLCDCbit2() {
         final int bit2 = 0b100;
         return (LCDC & bit2) >> 2;

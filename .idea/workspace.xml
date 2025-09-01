@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="3d99bb93-0256-4e75-8212-af97d2135b8d" name="Changes" comment="Little progress on rendering Objects.&#10;&#10;- determines whether to render an object's pixel&#10;- routes and retrieves objects tile data">
+    <list default="true" id="3d99bb93-0256-4e75-8212-af97d2135b8d" name="Changes" comment="Fixed objects positioning.&#10;&#10;- Objects were positioned 1 extra tile to the right since we didn't consider the starting point of the screen (x=8 screen start, x=168 screen end).">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java" afterDir="false" />
     </list>
@@ -197,6 +197,8 @@
       <workItem from="1755162885144" duration="16066000" />
       <workItem from="1755204552579" duration="107000" />
       <workItem from="1755340497174" duration="21899000" />
+      <workItem from="1755550998925" duration="1688000" />
+      <workItem from="1756731489159" duration="3556000" />
     </task>
     <task id="LOCAL-00001" summary="Migration to libGDX project setup">
       <option name="closed" value="true" />
@@ -270,7 +272,31 @@
       <option name="project" value="LOCAL" />
       <updated>1755457580353</updated>
     </task>
-    <option name="localTasksCounter" value="10" />
+    <task id="LOCAL-00010" summary="Little progress on rendering Objects.&#10;&#10;- determines whether to render an object's pixel&#10;- routes and retrieves objects tile data">
+      <option name="closed" value="true" />
+      <created>1755458844530</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1755458844530</updated>
+    </task>
+    <task id="LOCAL-00011" summary="Bug fix + palletes&#10;&#10;- fixed a for-each loop access that was pushing the elements index instead of the element into the objFIFO&#10;&#10;- new palleteSwap method to adjust the pixel colours depending on pallete used.">
+      <option name="closed" value="true" />
+      <created>1755538962897</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1755538962897</updated>
+    </task>
+    <task id="LOCAL-00012" summary="Fixed objects positioning.&#10;&#10;- Objects were positioned 1 extra tile to the right since we didn't consider the starting point of the screen (x=8 screen start, x=168 screen end).">
+      <option name="closed" value="true" />
+      <created>1756737347825</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1756737347825</updated>
+    </task>
+    <option name="localTasksCounter" value="13" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -300,7 +326,9 @@
     <MESSAGE value="displaying gif correctly on github." />
     <MESSAGE value="Implemented instruction running before LCD is turned on.&#10;&#10;- fixes our incomplete tiles" />
     <MESSAGE value="Little progress on rendering Objects.&#10;&#10;- determines whether to render an object's pixel&#10;- routes and retrieves objects tile data" />
-    <option name="LAST_COMMIT_MESSAGE" value="Little progress on rendering Objects.&#10;&#10;- determines whether to render an object's pixel&#10;- routes and retrieves objects tile data" />
+    <MESSAGE value="Bug fix + palletes&#10;&#10;- fixed a for-each loop access that was pushing the elements index instead of the element into the objFIFO&#10;&#10;- new palleteSwap method to adjust the pixel colours depending on pallete used." />
+    <MESSAGE value="Fixed objects positioning.&#10;&#10;- Objects were positioned 1 extra tile to the right since we didn't consider the starting point of the screen (x=8 screen start, x=168 screen end)." />
+    <option name="LAST_COMMIT_MESSAGE" value="Fixed objects positioning.&#10;&#10;- Objects were positioned 1 extra tile to the right since we didn't consider the starting point of the screen (x=8 screen start, x=168 screen end)." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -310,9 +338,10 @@
           <option name="timeStamp" value="30" />
         </breakpoint>
         <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java</url>
-          <line>339</line>
-          <option name="timeStamp" value="44" />
+          <condition expression="renderCounter &gt; 60 * 10" language="JAVA" />
+          <url>file://$PROJECT_DIR$/core/src/main/java/j/gb/Run.java</url>
+          <line>91</line>
+          <option name="timeStamp" value="61" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

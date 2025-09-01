@@ -127,7 +127,11 @@ public class Run extends ApplicationAdapter {
             for (int y = 0; y < WORLD_HEIGHT; y++) {
                 for (int x = 0; x < WORLD_WIDTH; x++) {
                     try {
-                        pixmap.setColor(get2bitColour(lcd[y][x]));
+                        if ((y % 8 == 0) && (x % 8 == 0)) {
+                            pixmap.setColor((Color.BLACK)); // to differentiate between tiles
+                        } else {
+                            pixmap.setColor(get2bitColour(lcd[y][x]));
+                        }
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
