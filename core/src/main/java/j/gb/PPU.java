@@ -127,12 +127,13 @@ public class PPU {
                         cpu.runInstructions(1, false);
                         mode3RunDotsCount = cpu.getTotalMCycles() * 4; // get the T-cycles just ran
                         cpu.resetTotalMCycles();
+                    } else {
+                        mode3RunDotsCount--;
                     }
-                    mode3RunDotsCount--;
 
                     // no drawing until sufficient amount of dots pass (for penalties)
                     if (penaltyCount == 0) {
-                        final int xPos = dots - penaltyAccumulator;             // adjusted by the penalties incurred
+                        final int xPos = dots - penaltyAccumulator;             // adjusted by the penalties incurred (covers 0-160 pixels correctly)
                         penaltyCount = drawPixel(xPos, scanline, scanlineObjs);
                         penaltyAccumulator += penaltyCount;                     // increase acc + reqDots by pen incurred
                         mode3RequiredDots += penaltyCount;
@@ -170,8 +171,8 @@ public class PPU {
     }
 
     /**
-     * Fills the screen array with a single pixel whilst in mode 3 of rendering. <br>
-     * Returns potential render penalties incurred in dots.
+     * Fills the screen array with a single pixel whilst in mode 3 of rendering. <br><br>
+     * Returns potential render penalties incurred in dots (T-cycles).
      */
     private int drawPixel(final int x, final int y, final ArrayList<Integer> scanlineObjs) {
         /*
@@ -183,11 +184,12 @@ public class PPU {
 
         // check if there's any object in the way first
         for (int i : scanlineObjs) {
-            final int objectX = getObjectOAM(i)[1]; // we might benefit from getting OAM info from outside this method too..
+            // x - 8, since the screen starts at x=8 for objects (so x=0 is hidden!)
+            final int objectX = getObjectOAM(i)[1] - 8; // we might benefit from getting OAM info from outside this method too..
             final int scx = getSCX();
 
             // deal with the first big penalty if exists
-            if (objectX == 0 && (scx & 7) > 0) {
+            if (objectX == 0 && (scx & 7) > 0) { // case given by PanDocs
                 penaltyAccum += scx & 0b111;
                 penaltyAccum += 3; // step 2
                 if (memory.getLCDCbit1() == 0) return penaltyAccum; // early cancellation check
@@ -483,6 +485,7 @@ public class PPU {
     private int[] objectPalleteSwap(final int oamFlags, final int[] dataRow) {
         int palleteAddr;
         int oamPallete = (oamFlags & 0b10000) >> 4;
+
         if (oamPallete == 0) palleteAddr = 0xFF48; // OBP0
         else palleteAddr = 0xFF49; // OBP1
 
