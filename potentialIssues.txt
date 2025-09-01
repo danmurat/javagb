@@ -1,0 +1,28 @@
+###
+Purpose:
+This file is intended for putting down what issues I think we've spotted, that may require a fix
+later. When unsure, but no real way of testing yet, I'll put what I think in here to refer to later
+should some issue actually arise.
+###
+
+
+## 8x16 tileRow access
+in pixelFetcherObj() (PPU.java, line 339).
+The way we access the correct row of the 8x16 tile is checking what row in the scanline we're in. We
+modulo by 16 (y % 16) so if we're on y=17, the row=1. or y=31, the row=15 (0-15 so the 16th row).
+This only really works if the tile always begins from 0-15 y position.
+Say if a 8x16 tile begins at y=5, its last tile should be on y=21, but the way we get the row means for
+rows y >16, we would access 0-5 row, which is wrong.
+
+We need to find a way to keep track of each individual tile's position, and access their respective rows
+from where their tile lies. So it's not GENERAL y % 16, or even y % 8, because the same applies to 8x8
+as well! (if they start on say, y=4!).
+
+For now, since dmg-acid test starts all objs perfectly on a tile location, we'll leave for now as we solve
+different problems. But the games should be able to place objs at ANY location, so we'll need to make this
+change.
+
+-- Update:
+I've made the change, so that it accesses the row of the individual obj (from wherever it's located) rather
+than scanline % 8/16. I don't have a way to test yet, but if the obj moves into any tile row other than 0,
+all the rows of the obj should still appear as normal.

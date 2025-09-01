@@ -324,19 +324,21 @@ public class PPU {
 
         // obj access vars that will help
         final int objTileIndex = objOam[2]; // x0-ff (255)
-        final int objYPos = objOam[0];
-        //final int tileRow = y - objYPos; // how far away from top in rows (should be 0-15)
-        //final int tileRow = y % 8; // testing
+        final int objYPos = objOam[0] - 16;
+      /* Below gives correct row, depending on how far down the scanline we are. Will always
+         be between 0-8,0-16 since this method only runs if the screen pixel is within an 8x8
+         or 8x16 obj! */
+        final int objRowPos = y - objYPos;
 
         if (is8x8) {
             tileAddress1 += objTileIndex * 16; /* 0-ff * 16 gives us start of tile address (1 tile = 16 addresses)
                                               ff * 16 = ff0 (ff0-fff is the final tile). */
-            final int tileRow = y % 8;
+            final int tileRow = objRowPos % 8; // should always be within 8, but just to make sure
             // row = 0-7, a single tilerow is 2 address'. So row*2 gives us correct row (row0 = addr0 and addr1)
             final int adjustedRow = tileRow * 2;
             dataRow = computeTileRow(tileAddress1 + adjustedRow);
         } else {
-            final int tileRow = y % 16; // out of 16 rows..
+            final int tileRow = objRowPos % 16; // out of 16 rows..
             tileAddress1 += (objTileIndex & 0xFE) * 16; // 8x16's ignores bit0 for the first tile and slots in 1 for the second
             tileAddress2 += (objTileIndex | 0x1) * 16;  // this guarantees 2 different locations for top/bottom
             if (tileRow <= 7) {
