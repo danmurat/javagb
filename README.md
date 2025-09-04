@@ -1,6 +1,6 @@
 New attempt at GameBoy emulation.
 
-Finish before Sep 2025.
+Finish before 2026.
 
 ### Recent Progress
 ![Emulator GIF](./assets/bootup.gif)

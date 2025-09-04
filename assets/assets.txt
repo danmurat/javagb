@@ -1,7 +1,9 @@
 bootup.gif
 dmgac hllwrldFix.png
+dmgacid fixedObjSpacing.png
 dmgacid spriteAttempt.png
 dmgacid statInterrupt.png
+dmgacid x:y flips.png
 dmgacid.png
 libgdx.png
 log.txt
