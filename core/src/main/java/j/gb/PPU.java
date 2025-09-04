@@ -1,7 +1,9 @@
 package j.gb;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.ArrayDeque;
+import java.util.Arrays;
 
 /**
  * Implementation of the GameBoy's Pixel Processing Unit.
@@ -42,6 +44,8 @@ public class PPU {
 
     private ArrayDeque<Integer> bgFIFO;
     private ArrayDeque<Integer> objFIFO;
+
+    private boolean alreadyOverlapFilled = false; // to help with priority selection on overlapping objects
 
     public PPU(Memory memory, CPU cpu) {
         this.memory = memory;
@@ -180,7 +184,8 @@ public class PPU {
         x position, we'll fetch and draw the object.
          */
         int penaltyAccum = 0;
-        int objNum = -1; // negative tells us no object was found.
+        //int objNum = -1; // negative tells us no object was found.
+        ArrayList<Integer> objNums = new ArrayList<>(); // holds the objects we find within pixel position
 
         // check if there's any object in the way first
         for (int i : scanlineObjs) {
@@ -198,21 +203,90 @@ public class PPU {
             final int adjustedObjectX = objectX - 8;
             // when screen x is within the objs tile (8 wide)
             if (adjustedObjectX <= x && x < (adjustedObjectX + 8)) {
-                objNum = i;
-                break; // TODO: overlapping oams. This wants just 1
+                objNums.add(i); // will include any overlapping objects too
             }
         }
 
+        // bg/obj fifo's to be mixed. So we must run both and compare!
 
-        // fill obj or bg
-        if (memory.getLCDCbit1() == 1 && objNum != -1) {
-            if (objFIFO.isEmpty()) objFIFO = pixelFetcherObj(y, objNum);
-            screen[y][x] = objFIFO.remove();
-            penaltyAccum += 1; // step 1 (step 2 in panDocs kind of has to be done first here, to check for objs)
-        } else {
+        // when bg/win is enabled
+      /*  if (memory.getLCDCbit0() == 1) {
             if (bgFIFO.isEmpty()) bgFIFO = pixelFetcher(x, y);
-            screen[y][x] = bgFIFO.remove();
         }
+*/
+
+
+        // fill obj if objs are enabled + we're within an obj
+        //PRIOR WORKING VERSION
+//        if (memory.getLCDCbit1() == 1 && objNum != -1) {
+//            if (objFIFO.isEmpty()) objFIFO = pixelFetcherObj(y, objNum);
+//            screen[y][x] = objFIFO.remove();
+//            penaltyAccum += 1; // step 1 (step 2 in panDocs kind of has to be done first here, to check for objs)
+//        } else {
+//            if (bgFIFO.isEmpty()) bgFIFO = pixelFetcher(x, y);
+//            screen[y][x] = bgFIFO.remove();
+//        }
+
+        if (memory.getLCDCbit0() == 1) {
+            if (bgFIFO.isEmpty()) bgFIFO = pixelFetcher(x, y);
+        }
+
+        if (memory.getLCDCbit1() == 1 && !objNums.isEmpty()) {
+            /* 4/9/2025 debugging
+            We found on the tile row for the eyes (dmgacid) a lot of our pixels were 2 ahead. This is caused by
+            the left eyelash beginning 2 pixels after the 7th tile, and thus filling FIFO with 8 pixels, all starting
+            and being re-filled at the 2nd position of every tile after!
+
+            What's happening is that the eyelash actually overlaps the eye object. Eyelash starts at x=50-58 and
+            the eye at x=56-64. Overlap from 56-58. Of course, we don't account for that here, because the FIFO is
+            not empty, and we ignore. But this is wrong! We need to be sorting out this conflict!
+
+            The only check then can't just be isEmpty? Since we're able to enter this case, it means objects are enabled
+            and that there is an object right now!
+             */
+
+            if (objFIFO.isEmpty()) {
+                objFIFO = pixelFetcherObj(y, objNums.getFirst());
+                alreadyOverlapFilled = false; // reset
+            } else if (objNums.size() > 1 && !alreadyOverlapFilled) {
+                objFIFO = handleObjOverlap(y, objNums);
+                alreadyOverlapFilled = true; // to only call this condition once re-emptied
+            }
+            /*else {
+                System.out.println("LAST OBJ CASE NOT HANDLED! LINE 249.");
+            }*/
+            penaltyAccum += 1; // step 1 (step 2 in panDocs kind of has to be done first here, to check for objs)
+        }
+
+        // fifo pixels to compare
+        int bgPixel = 0; // will be 0 unless bgFIFO says otherwise
+        int objPixel = -1; // will be positive if objs have been enabled
+        if (!bgFIFO.isEmpty()) bgPixel = bgFIFO.remove();
+        if (!objFIFO.isEmpty()) objPixel = objFIFO.remove();
+
+        // conditions
+        if (objPixel == -1) {
+            screen[y][x] = bgPixel; // objs were disabled
+        } else {
+            if (objPixel >= 1) {
+                // compare obj bg priority
+                /*final int objFlagsPriorityBit = (getObjectOAM(objNum)[3]) >> 7;
+                if (objFlagsPriorityBit == 0 && objPixel > bgPixel) {
+                    screen[y][x] = objPixel;
+                } else if (objFlagsPriorityBit == 1) {
+                    if (bgPixel > 0) {
+                        screen[y][x] = bgPixel;
+                    } else {
+                        screen[y][x] = objPixel;
+                    }
+                }*/
+                // forget priority for now (due to the out of bounds bug). Just check that we're mixing ok.
+                screen[y][x] = objPixel;
+            } else {
+                screen[y][x] = bgPixel;
+            }
+        }
+
 
         // bg only..
       /*if (bgFIFO.isEmpty()) bgFIFO = pixelFetcher(x, y);
@@ -318,6 +392,8 @@ public class PPU {
         int[] dataRow;
         int penaltyAccum = 0;
         final int[] objOam = getObjectOAM(objNum); // can we pass this info beforehand?
+        final int oamFlags = objOam[3];
+
         int tileAddress1 = 0x8000;
         int tileAddress2 = 0x8000; // for 8x16 objs
         final boolean is8x8 = memory.getLCDCbit2() == 0;
@@ -328,7 +404,22 @@ public class PPU {
       /* Below gives correct row, depending on how far down the scanline we are. Will always
          be between 0-8,0-16 since this method only runs if the screen pixel is within an 8x8
          or 8x16 obj! */
-        final int objRowPos = y - objYPos;
+        final int yFlipFlag = (oamFlags & 0x7F) >> 6; // $7f == 0111 1111, to get bit 6
+        int objRowPos = y - objYPos;
+        if (yFlipFlag == 1) {
+            objRowPos = 15 - objRowPos; // will change the row to the opposite end. E.g row 0 = 15, row 1 = 14, etc..
+        }
+
+
+        /*
+        TODO: after run
+        Y FLIP needs to be handled here, since it decides whether we access the row from top-bottom (as normal) or
+        bottom top.
+
+        - is oamFlags bit.5 on?
+        - then access bottom-top
+         */
+
 
         if (is8x8) {
             tileAddress1 += objTileIndex * 16; /* 0-ff * 16 gives us start of tile address (1 tile = 16 addresses)
@@ -371,16 +462,44 @@ public class PPU {
          */
 
         // handle pallete swapping
-        final int oamFlags = objOam[3];
-        final int[] adjustedDataRow = objectPalleteSwap(oamFlags, dataRow);
+        //final int[] adjustedDataRow = objectPalleteSwap(oamFlags, dataRow);
 
         // we'll just push what we've got from pixelRow. May not be completely correct as per above.
-        ArrayDeque<Integer> rowOfPixels = new ArrayDeque<>();
-        for (int i : adjustedDataRow) {
+        //ArrayDeque<Integer> rowOfPixels = new ArrayDeque<>();
+        /*for (int i : adjustedDataRow) {
             rowOfPixels.add(i);
-        }
+        }*/
+
+        ArrayDeque<Integer> rowOfPixels = handlePixelsPush(dataRow, oamFlags);
 
         return rowOfPixels;
+    }
+
+    /// applies any changes needed before finally pushing (like Xflip, pallete change)
+    private ArrayDeque<Integer> handlePixelsPush(final int[] dataRow, final int oamFlags) {
+        // depending on what bit is on, the FIFO may be pushed to differently
+        final int xFlipFlag = (oamFlags & 0x3F) >> 5; // $3F = 0011 111, get bit 5
+        if (xFlipFlag == 1) {
+            for (int i = 0; i < dataRow.length / 2; i++) {
+                // 2 pointer from both ends towards the middle (and swap)
+                final int tailTemp = dataRow[dataRow.length - i - 1];
+                dataRow[dataRow.length - i - 1] = dataRow[i];
+                dataRow[i] = tailTemp;
+            }
+            // TODO: could we just alter the way the FIFO is dequeud? Like popping instead?
+            // though this is not computationally expensive regardless
+        }
+
+        //
+        final int[] palleteAdjustedDataRow = objectPalleteSwap(oamFlags, dataRow);
+
+        ArrayDeque<Integer> pixelRow = new ArrayDeque<>();
+
+        for (int i : palleteAdjustedDataRow) {
+            pixelRow.add(i);
+        }
+
+        return pixelRow;
     }
 
     /*
@@ -466,7 +585,7 @@ public class PPU {
 
     // store the inf
     private int[] getObjectOAM(final int objNum) {
-        final int[]oamInfo = new int[4];
+        final int[] oamInfo = new int[4];
         // will get each byte of info
         final int yPos = memory.ppuReadOam(OAM_MEMORY_START + objNum * OAM_ACCESS_SCALER);
         final int xPos = memory.ppuReadOam((OAM_MEMORY_START + objNum * OAM_ACCESS_SCALER) + 1);
@@ -513,6 +632,52 @@ public class PPU {
         }*/
 
         return dataRow;
+    }
+
+    /// Handles 2 different overlapping objects to select which pixel to output
+    private ArrayDeque<Integer> handleObjOverlap(final int y, final ArrayList<Integer> objNums) {
+        final Integer[] currentObjFIFO = objFIFO.toArray(new Integer[0]);
+        // get contents of the next object (sortedObjNums assumes we're dealing only with 2. May be a problem later).
+        final Integer[] newObjFIFO = pixelFetcherObj(y, sortObjsByScreenX(objNums).get(1)).toArray(new Integer[0]);
+        // alter contents appropriately
+        for (int i = 0; i < currentObjFIFO.length; i++) {
+            if (currentObjFIFO[i] != 0 && newObjFIFO[i] != 0) {
+                newObjFIFO[i] = currentObjFIFO[i]; // leftmost obj takes priority for opaque overlapping pixels
+            }
+            else if (currentObjFIFO[i] > newObjFIFO[i]) newObjFIFO[i] = currentObjFIFO[i];
+        }
+
+        return new ArrayDeque<>(Arrays.asList(newObjFIFO));
+    }
+
+    /// originally sorted by oam number. We change by screenX position (lowest->highest) to help access for overlaps.
+    private ArrayList<Integer> sortObjsByScreenX(final ArrayList<Integer> objNums) {
+        // first we'll create an equal sized list containing each indexes x position
+        ArrayList<Integer> objNumsXPos = new ArrayList<>();
+        for (Integer i : objNums) {
+            final int xPos = getObjectOAM(i)[1];
+            objNumsXPos.add(xPos);
+        }
+        // then as we sort the x-pos list, we apply the same changes to the indexed one
+        // these are small lists so we'll just O(n^2).
+        for (int i = 0; i < objNumsXPos.size(); i++) {
+            for (int j = i+1; j < objNumsXPos.size(); j++) {
+                // xPositions
+                final int elementI = objNumsXPos.get(i);
+                final int elementJ = objNumsXPos.get(j);
+                // indexes from OAM
+                final int oamIndexI = objNums.get(i);
+                final int oamIndexJ = objNums.get(j);
+                if (elementJ < elementI) {
+                    objNumsXPos.set(i, elementJ); // swap
+                    objNums.set(i, oamIndexJ);    // mirror with og list
+                    objNumsXPos.set(j, elementI);
+                    objNums.set(j, oamIndexI);
+                }
+            }
+        }
+
+        return objNums;
     }
 
 
@@ -830,5 +995,15 @@ public class PPU {
         }
 
         return vramTileData;
+    }
+
+
+    private int[][] allOAMInfo() {
+        final int[][] allOAMs = new int[40][4];
+        for (int i = 0; i < 40; i++) {
+            allOAMs[i] = getObjectOAM(i);
+        }
+
+        return allOAMs;
     }
 }

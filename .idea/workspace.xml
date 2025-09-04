@@ -4,10 +4,14 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="3d99bb93-0256-4e75-8212-af97d2135b8d" name="Changes" comment="Kept objectX as is, but when checking screen position, we access the adjusted objectX for correct positioning.">
-      <change afterPath="$PROJECT_DIR$/potentialIssues.txt" afterDir="false" />
+    <list default="true" id="3d99bb93-0256-4e75-8212-af97d2135b8d" name="Changes" comment="Added Obj row access that is individual to the obj.&#10;&#10;- We were general checking rows of all objs based off the scanline position (y%8/16), but didn't consider if an object was place in any other row (say it starts at row 1 or 5 of a tile)! This is now fixed, so objects should appear as normal no matter where they start.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/assets/assets.txt" beforeDir="false" afterPath="$PROJECT_DIR$/assets/assets.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/CPU.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/CPU.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/Memory.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/Memory.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/Run.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/Run.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -111,7 +115,7 @@
     "project.structure.last.edited": "Project",
     "project.structure.proportion": "0.15",
     "project.structure.side.proportion": "0.2045977",
-    "settings.editor.selected.configurable": "preferences.keymap",
+    "settings.editor.selected.configurable": "editor.preferences.inline.completion",
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
@@ -127,7 +131,7 @@
         <option name="executionName" />
         <option name="externalProjectPath" value="$PROJECT_DIR$/lwjgl3" />
         <option name="externalSystemIdString" value="GRADLE" />
-        <option name="scriptParameters" />
+        <option name="scriptParameters" value="" />
         <option name="taskDescriptions">
           <list />
         </option>
@@ -199,7 +203,8 @@
       <workItem from="1755204552579" duration="107000" />
       <workItem from="1755340497174" duration="21899000" />
       <workItem from="1755550998925" duration="1688000" />
-      <workItem from="1756731489159" duration="5908000" />
+      <workItem from="1756731489159" duration="13508000" />
+      <workItem from="1756982390855" duration="21620000" />
     </task>
     <task id="LOCAL-00001" summary="Migration to libGDX project setup">
       <option name="closed" value="true" />
@@ -305,7 +310,15 @@
       <option name="project" value="LOCAL" />
       <updated>1756737910933</updated>
     </task>
-    <option name="localTasksCounter" value="14" />
+    <task id="LOCAL-00014" summary="Added Obj row access that is individual to the obj.&#10;&#10;- We were general checking rows of all objs based off the scanline position (y%8/16), but didn't consider if an object was place in any other row (say it starts at row 1 or 5 of a tile)! This is now fixed, so objects should appear as normal no matter where they start.">
+      <option name="closed" value="true" />
+      <created>1756740273591</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1756740273591</updated>
+    </task>
+    <option name="localTasksCounter" value="15" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -338,7 +351,8 @@
     <MESSAGE value="Bug fix + palletes&#10;&#10;- fixed a for-each loop access that was pushing the elements index instead of the element into the objFIFO&#10;&#10;- new palleteSwap method to adjust the pixel colours depending on pallete used." />
     <MESSAGE value="Fixed objects positioning.&#10;&#10;- Objects were positioned 1 extra tile to the right since we didn't consider the starting point of the screen (x=8 screen start, x=168 screen end)." />
     <MESSAGE value="Kept objectX as is, but when checking screen position, we access the adjusted objectX for correct positioning." />
-    <option name="LAST_COMMIT_MESSAGE" value="Kept objectX as is, but when checking screen position, we access the adjusted objectX for correct positioning." />
+    <MESSAGE value="Added Obj row access that is individual to the obj.&#10;&#10;- We were general checking rows of all objs based off the scanline position (y%8/16), but didn't consider if an object was place in any other row (say it starts at row 1 or 5 of a tile)! This is now fixed, so objects should appear as normal no matter where they start." />
+    <option name="LAST_COMMIT_MESSAGE" value="Added Obj row access that is individual to the obj.&#10;&#10;- We were general checking rows of all objs based off the scanline position (y%8/16), but didn't consider if an object was place in any other row (say it starts at row 1 or 5 of a tile)! This is now fixed, so objects should appear as normal no matter where they start." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -348,13 +362,18 @@
           <option name="timeStamp" value="30" />
         </breakpoint>
         <line-breakpoint enabled="true" type="java-line">
-          <condition expression="renderCounter &gt; 60 * 10" language="JAVA" />
-          <url>file://$PROJECT_DIR$/core/src/main/java/j/gb/Run.java</url>
-          <line>91</line>
-          <option name="timeStamp" value="61" />
+          <condition expression="x==56 &amp;&amp; y == 48" language="JAVA" />
+          <url>file://$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java</url>
+          <line>229</line>
+          <option name="timeStamp" value="77" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
+    <watches-manager>
+      <configuration name="GradleRunConfiguration">
+        <watch expression="objNum" />
+      </configuration>
+    </watches-manager>
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
