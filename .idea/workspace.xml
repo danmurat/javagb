@@ -4,14 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="3d99bb93-0256-4e75-8212-af97d2135b8d" name="Changes" comment="Added Obj row access that is individual to the obj.&#10;&#10;- We were general checking rows of all objs based off the scanline position (y%8/16), but didn't consider if an object was place in any other row (say it starts at row 1 or 5 of a tile)! This is now fixed, so objects should appear as normal no matter where they start.">
+    <list default="true" id="3d99bb93-0256-4e75-8212-af97d2135b8d" name="Changes" comment="Number of Object display fixes.&#10;&#10;- Applied mixing of bg/obj FIFOs&#10;- Handles 2 overlapping objects&#10;- flips objects in x/y planes as needed">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/assets/assets.txt" beforeDir="false" afterPath="$PROJECT_DIR$/assets/assets.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/CPU.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/CPU.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/Memory.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/Memory.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/Run.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/Run.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -204,7 +199,7 @@
       <workItem from="1755340497174" duration="21899000" />
       <workItem from="1755550998925" duration="1688000" />
       <workItem from="1756731489159" duration="13508000" />
-      <workItem from="1756982390855" duration="21620000" />
+      <workItem from="1756982390855" duration="22812000" />
     </task>
     <task id="LOCAL-00001" summary="Migration to libGDX project setup">
       <option name="closed" value="true" />
@@ -318,7 +313,15 @@
       <option name="project" value="LOCAL" />
       <updated>1756740273591</updated>
     </task>
-    <option name="localTasksCounter" value="15" />
+    <task id="LOCAL-00015" summary="Number of Object display fixes.&#10;&#10;- Applied mixing of bg/obj FIFOs&#10;- Handles 2 overlapping objects&#10;- flips objects in x/y planes as needed">
+      <option name="closed" value="true" />
+      <created>1757017912426</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1757017912426</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -352,7 +355,8 @@
     <MESSAGE value="Fixed objects positioning.&#10;&#10;- Objects were positioned 1 extra tile to the right since we didn't consider the starting point of the screen (x=8 screen start, x=168 screen end)." />
     <MESSAGE value="Kept objectX as is, but when checking screen position, we access the adjusted objectX for correct positioning." />
     <MESSAGE value="Added Obj row access that is individual to the obj.&#10;&#10;- We were general checking rows of all objs based off the scanline position (y%8/16), but didn't consider if an object was place in any other row (say it starts at row 1 or 5 of a tile)! This is now fixed, so objects should appear as normal no matter where they start." />
-    <option name="LAST_COMMIT_MESSAGE" value="Added Obj row access that is individual to the obj.&#10;&#10;- We were general checking rows of all objs based off the scanline position (y%8/16), but didn't consider if an object was place in any other row (say it starts at row 1 or 5 of a tile)! This is now fixed, so objects should appear as normal no matter where they start." />
+    <MESSAGE value="Number of Object display fixes.&#10;&#10;- Applied mixing of bg/obj FIFOs&#10;- Handles 2 overlapping objects&#10;- flips objects in x/y planes as needed" />
+    <option name="LAST_COMMIT_MESSAGE" value="Number of Object display fixes.&#10;&#10;- Applied mixing of bg/obj FIFOs&#10;- Handles 2 overlapping objects&#10;- flips objects in x/y planes as needed" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
