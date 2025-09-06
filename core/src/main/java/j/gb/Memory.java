@@ -77,22 +77,22 @@ public class Memory {
     {
         // this sequence correctly arranges boot rom and cartridge rom contents
         // once 0xFE instruction runs, 0xFF50 is written to and we swap the original rom contents in place of boot data
-        loadBootAndHeader(romName);
-        System.out.println("Boot rom and header cartridge loaded.");
-        mbcSetup();
-        System.out.println("MBC set up complete.");
-        loadRom(romName);
-        System.out.println("Full cartridge rom loaded.");
-        fillBootRomData();
-        System.out.println("$0-ff address range swapped with boot rom data.");
+//        loadBootAndHeader(romName);
+//        System.out.println("Boot rom and header cartridge loaded.");
+//        mbcSetup();
+//        System.out.println("MBC set up complete.");
+//        loadRom(romName);
+//        System.out.println("Full cartridge rom loaded.");
+//        fillBootRomData();
+//        System.out.println("$0-ff address range swapped with boot rom data.");
 
         // below is for running/testing boot rom only
         //loadBootRomOnly();
 
         // below is for running cartridge only (remember to re-set cpu registers from 0x100, etc..)
-//        loadBootAndHeader(romName); // needed for mbc. Just no swapping to run boot.
-//        mbcSetup();
-//        loadRom(romName);
+        loadBootAndHeader(romName); // needed for mbc. Just no swapping to run boot.
+        mbcSetup();
+        loadRom(romName);
     }
 
     /**
@@ -212,10 +212,7 @@ public class Memory {
             if (oamAccessible) return (short) spriteTable[address - 0xFE00];
             else return 0xFF; // junk value
         } else if (0xFEA0 <= address && address <= 0xFEFF) { // not usable ...
-            // TODO: return something appropriate
-            //throw new RuntimeException("implement do nothing for addresses 0xFEA0 to 0xFEFF");
-            // for now just return 0
-            return 0;
+            return 0xFF; // default bus value
         } else if (0xFF00 <= address && address <= 0xFF7F) { // IO ports
             return switch (address) {
                 // timer addresses
@@ -279,9 +276,8 @@ public class Memory {
             echo[address - 0xE000] = value;
         } else if (0xFE00 <= address && address <= 0xFE9F) { // sprite attribute table
             if (oamAccessible) spriteTable[address - 0xFE00] = value; // same as vram write
-        } else if (0xFEA0 <= address && address <= 0xFEFF) { // not usable ...
-            // TODO: return something appropriate
-            throw new RuntimeException("implement do nothing for addresses 0xFEA0 to 0xFEFF");
+        } else if (0xFEA0 <= address && address <= 0xFEFF) {
+            // not usable ... so nothing happens
         } else if (0xFF00 <= address && address <= 0xFF7F) { // IO ports
             switch (address) {
                 // timer addresses

@@ -75,19 +75,19 @@ public class CPU {
         this.memory = memory;
 
         // addresses after boot rom
-//        AF = 0x01B0;
-//        BC = 0x0013;
-//        DE = 0x00D8;
-//        HL = 0x014D;
-//        SP = 0xFFFE;
-//        PC = 0x100;
+        AF = 0x01B0;
+        BC = 0x0013;
+        DE = 0x00D8;
+        HL = 0x014D;
+        SP = 0xFFFE;
+        PC = 0x100;
 
-        AF = 0;
-        BC = 0;
-        DE = 0;
-        HL = 0;
-        SP = 0;
-        PC = 0; // for boot rom testing
+//        AF = 0;
+//        BC = 0;
+//        DE = 0;
+//        HL = 0;
+//        SP = 0;
+//        PC = 0; // for boot rom testing
 
         IME = false;
         eiTurnImeOn = false;

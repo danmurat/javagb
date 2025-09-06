@@ -227,6 +227,7 @@ public class PPU {
 //            screen[y][x] = bgFIFO.remove();
 //        }
 
+
         if (memory.getLCDCbit0() == 1) {
             if (bgFIFO.isEmpty()) bgFIFO = pixelFetcher(x, y);
         }
@@ -327,6 +328,7 @@ public class PPU {
         I found it quite hard to visualise with the words from PanDocs. This video instantly gets the image in your
         head of how this works: https://www.youtube.com/watch?v=8TVgN16DrEU
          */
+
         boolean isWindowTile = false;
         if (memory.getLCDCbit3() == 1 && !isWithinWindow(scanlineXPos, scanlineYPos)) {
             tileMapLocation = 0x9C00;
@@ -348,15 +350,14 @@ public class PPU {
         int fetcherX, fetcherY;
         if (isWindowTile) {
             // TODO: window X may need to be subtracted by 7!
-            final int WX = getWindowX();
+            final int WX = getWindowX() - 7; // remember, it can be left off-screen by 7
             final int WY = getWindowY();
             final int WXTileNum = WX / 8;
             final int scanlineXTileNum = scanlineXPos / 8;
             // the scanX/Y - winX/Y gives us the correct position of how far along a window tilemap we are.
-            fetcherX = WXTileNum + (scanlineXTileNum - WXTileNum) & 0x1F;
-            fetcherY = WY + (scanlineYPos - WY) & 255;
+            fetcherX = (scanlineXTileNum - WXTileNum) & 0x1F;
+            fetcherY = (scanlineYPos - WY) & 255;
         } else {
-            // forgetting about dealing with window tiles for the moment, to get the correct tile position, we do:
             fetcherX = ((getSCX() / 8) + (scanlineXPos / 8)) & 0x1F; // 1F ensures result between 0-31
             fetcherY = (getSCY() + scanlineYPos) & 255; // y accesses the actual row
         }
@@ -532,7 +533,7 @@ public class PPU {
     private boolean isWithinWindow(final int xPos, final int yPos) {
         // PanDocs only says to check against xPos. But this doesn't make sense since the window yPos could be further
         // down. We include the yPos, but keep this comment in case my thinking is wrong.
-        return xPos >= getWindowX() && yPos >= getWindowY();
+        return xPos >= (getWindowX() - 7) && yPos >= getWindowY();
     }
 
     // width = 160 pixels with +/- 8 (the width of each tile). So 0 is off screen, and 168 is too.
@@ -688,8 +689,6 @@ public class PPU {
         // correctTileRowAccess = 0-7, * 2, so we access the correct row of the tile that's stored in mem and spans all 16 addresses.
         final int correctTileRowAccess = (tileYPos % 8) * 2;
 
-        // TODO: i'm not sure if we check this once, or that we check through each iteration?
-        // assuming once for now.
         if (memory.getLCDCbit4() == 1) {
             basePointer = BASE_POINTER_8000;
             /*
@@ -785,7 +784,18 @@ public class PPU {
 
     // like above, this specifies where the start of our window tiles are placed.
     private int getWindowX() {
-        return memory.readByte(0xFF4B) + 7; // panDocs says this is needed?
+        //return memory.readByte(0xFF4B) + 7; // panDocs says this is needed?
+        /*
+        Above is commented out since I think it's causing wrong behavior when attempting to display the
+        right-eye and chin in dmg-acid. Since they're window tiles, we don't seem to be recognising it
+        because our screen position starts out-of-bounds (not within the window tile positions). At x=88, y=40
+        (the start of the right-eye) the WX=102 + WY = 40.
+        The WX relative postion on screen is WX - 7. So when we check if we're within, we get this value, then subtract
+        7. This gives us 95. But, -7 again and it gives us 88.. which lines up with what we think should happen!
+
+        Adding 7 above causes us to have 95, which might be wrong. Hence for commenting it out while we debug.
+         */
+        return memory.readByte(0xFF4B);
     }
 
     private int getWindowY() {
