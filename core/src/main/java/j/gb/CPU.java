@@ -87,7 +87,7 @@ public class CPU {
         DE = 0;
         HL = 0;
         SP = 0;
-        PC = 0; // for boot rom testing
+        PC = 0; // when running boot rom too
 
         IME = false;
         eiTurnImeOn = false;

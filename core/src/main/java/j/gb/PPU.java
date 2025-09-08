@@ -27,6 +27,8 @@ public class PPU {
     private static final int LY_ADDRESS = 0xFF44;
     private static final int LYC_ADDRESS = 0xFF45;
 
+    private static final int WX_SCREEN_ADJUST_AMOUNT = 7; // its relative position on lcd is -7
+
 
     private final int[][] screen = new int[144][160];
 
@@ -41,6 +43,9 @@ public class PPU {
     private boolean mode3; // Drawing pixels
 
     private boolean ppuDisabled;
+
+    private int winInternalLineCounter = 0; // for window
+    private boolean wasWinRendered = false; // check per scanline for internalLineCounter increment
 
     private ArrayDeque<Integer> bgFIFO;
     private ArrayDeque<Integer> objFIFO;
@@ -148,6 +153,12 @@ public class PPU {
                     dots++; //
                 }
 
+                // check windowCounter after rendering whole scanline
+                if (wasWinRendered) {
+                    winInternalLineCounter++;
+                    wasWinRendered = false;
+                }
+
                 /* mode0 HBlank (lasts for the remaining number of dots left) */
                 setStatMode0(true);
                 memory.setOamAccessible(true);
@@ -168,6 +179,7 @@ public class PPU {
                 setStatMode1(true);
                 cpu.runInstructions(456 / 4, true);
                 setStatMode1(false); // leave for now, since it will just get reset to on for next iteration.
+                winInternalLineCounter = 0; // reset
             }
         }
 
@@ -226,6 +238,7 @@ public class PPU {
 //            if (bgFIFO.isEmpty()) bgFIFO = pixelFetcher(x, y);
 //            screen[y][x] = bgFIFO.remove();
 //        }
+
 
         if (memory.getLCDCbit0() == 1) {
             if (bgFIFO.isEmpty()) bgFIFO = pixelFetcher(x, y);
@@ -327,36 +340,35 @@ public class PPU {
         I found it quite hard to visualise with the words from PanDocs. This video instantly gets the image in your
         head of how this works: https://www.youtube.com/watch?v=8TVgN16DrEU
          */
+
         boolean isWindowTile = false;
         if (memory.getLCDCbit3() == 1 && !isWithinWindow(scanlineXPos, scanlineYPos)) {
             tileMapLocation = 0x9C00;
         } else if (memory.getLCDCbit6() == 1 && isWithinWindow(scanlineXPos, scanlineYPos)) {
             tileMapLocation = 0x9C00;
-            if (memory.getLCDCbit5() == 1) isWindowTile = true;
+            if (memory.getLCDCbit5() == 1) {
+                isWindowTile = true;
+                wasWinRendered = true; // for winInternalLineCounter
+            }
         } else if (memory.getLCDCbit6() == 0 && isWithinWindow(scanlineXPos, scanlineYPos) && memory.getLCDCbit5() == 1) {
             isWindowTile = true;
+            wasWinRendered = true;
         }
 
 
         /*
-        "The fetcher keeps track of which X and Y coordinate of the tile it’s on"
-
-        So fetcher X only cares about where the tile starts on the X plane, so it wants 0-31
-        fetcher Y cares about the actual row of the tile! This wants 0-255.
-        This way we can access the correct byte of tile data.
+        fetcherX/Y are the calculated positions on each tilemap. fetcherX is the whole tile (0-32), whereas
+        fetcherY is the actual pixel amount (0-255).
          */
         int fetcherX, fetcherY;
         if (isWindowTile) {
-            // TODO: window X may need to be subtracted by 7!
-            final int WX = getWindowX();
-            final int WY = getWindowY();
-            final int WXTileNum = WX / 8;
+            final int WXOnScreen = getWindowX() - WX_SCREEN_ADJUST_AMOUNT;
+            final int WXOnScreenTileNum = WXOnScreen / 8;
             final int scanlineXTileNum = scanlineXPos / 8;
-            // the scanX/Y - winX/Y gives us the correct position of how far along a window tilemap we are.
-            fetcherX = WXTileNum + (scanlineXTileNum - WXTileNum) & 0x1F;
-            fetcherY = WY + (scanlineYPos - WY) & 255;
+            // the scanX - winX gives us the correct position of how far along a window tilemap we are.
+            fetcherX = (scanlineXTileNum - WXOnScreenTileNum) & 0x1F;
+            fetcherY = winInternalLineCounter & 255; // how the window selects its tilemap row: https://gbdev.io/pandocs/Scrolling.html
         } else {
-            // forgetting about dealing with window tiles for the moment, to get the correct tile position, we do:
             fetcherX = ((getSCX() / 8) + (scanlineXPos / 8)) & 0x1F; // 1F ensures result between 0-31
             fetcherY = (getSCY() + scanlineYPos) & 255; // y accesses the actual row
         }
@@ -532,7 +544,7 @@ public class PPU {
     private boolean isWithinWindow(final int xPos, final int yPos) {
         // PanDocs only says to check against xPos. But this doesn't make sense since the window yPos could be further
         // down. We include the yPos, but keep this comment in case my thinking is wrong.
-        return xPos >= getWindowX() && yPos >= getWindowY();
+        return xPos >= (getWindowX() - WX_SCREEN_ADJUST_AMOUNT) && yPos >= getWindowY();
     }
 
     // width = 160 pixels with +/- 8 (the width of each tile). So 0 is off screen, and 168 is too.
@@ -688,8 +700,6 @@ public class PPU {
         // correctTileRowAccess = 0-7, * 2, so we access the correct row of the tile that's stored in mem and spans all 16 addresses.
         final int correctTileRowAccess = (tileYPos % 8) * 2;
 
-        // TODO: i'm not sure if we check this once, or that we check through each iteration?
-        // assuming once for now.
         if (memory.getLCDCbit4() == 1) {
             basePointer = BASE_POINTER_8000;
             /*
@@ -785,7 +795,7 @@ public class PPU {
 
     // like above, this specifies where the start of our window tiles are placed.
     private int getWindowX() {
-        return memory.readByte(0xFF4B) + 7; // panDocs says this is needed?
+        return memory.readByte(0xFF4B);
     }
 
     private int getWindowY() {
