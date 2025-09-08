@@ -77,22 +77,22 @@ public class Memory {
     {
         // this sequence correctly arranges boot rom and cartridge rom contents
         // once 0xFE instruction runs, 0xFF50 is written to and we swap the original rom contents in place of boot data
-//        loadBootAndHeader(romName);
-//        System.out.println("Boot rom and header cartridge loaded.");
-//        mbcSetup();
-//        System.out.println("MBC set up complete.");
-//        loadRom(romName);
-//        System.out.println("Full cartridge rom loaded.");
-//        fillBootRomData();
-//        System.out.println("$0-ff address range swapped with boot rom data.");
+        loadBootAndHeader(romName);
+        System.out.println("Boot rom and header cartridge loaded.");
+        mbcSetup();
+        System.out.println("MBC set up complete.");
+        loadRom(romName);
+        System.out.println("Full cartridge rom loaded.");
+        fillBootRomData();
+        System.out.println("$0-ff address range swapped with boot rom data.");
 
         // below is for running/testing boot rom only
         //loadBootRomOnly();
 
         // below is for running cartridge only (remember to re-set cpu registers from 0x100, etc..)
-        loadBootAndHeader(romName); // needed for mbc. Just no swapping to run boot.
-        mbcSetup();
-        loadRom(romName);
+//        loadBootAndHeader(romName); // needed for mbc. Just no swapping to run boot.
+//        mbcSetup();
+//        loadRom(romName);
     }
 
     /**

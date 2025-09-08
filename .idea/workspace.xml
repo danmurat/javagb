@@ -4,11 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="3d99bb93-0256-4e75-8212-af97d2135b8d" name="Changes" comment="Right-eye visible&#10;&#10;- window tile access fixed.">
+    <list default="true" id="3d99bb93-0256-4e75-8212-af97d2135b8d" name="Changes" comment="Fixed window rendering.&#10;&#10;- Implemented the window's internal line counter for correctly accessing it's tilemap row on render&#10;- dmgacid now fully renders correctly :)">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/assets/assets.txt" beforeDir="false" afterPath="$PROJECT_DIR$/assets/assets.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/CPU.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/CPU.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/Memory.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/Memory.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/Run.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/Run.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -202,7 +202,7 @@
       <workItem from="1755550998925" duration="1688000" />
       <workItem from="1756731489159" duration="13508000" />
       <workItem from="1756982390855" duration="23863000" />
-      <workItem from="1757163329405" duration="16056000" />
+      <workItem from="1757163329405" duration="17013000" />
     </task>
     <task id="LOCAL-00001" summary="Migration to libGDX project setup">
       <option name="closed" value="true" />
@@ -340,7 +340,15 @@
       <option name="project" value="LOCAL" />
       <updated>1757172857140</updated>
     </task>
-    <option name="localTasksCounter" value="18" />
+    <task id="LOCAL-00018" summary="Fixed window rendering.&#10;&#10;- Implemented the window's internal line counter for correctly accessing it's tilemap row on render&#10;- dmgacid now fully renders correctly :)">
+      <option name="closed" value="true" />
+      <created>1757330835341</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1757330835341</updated>
+    </task>
+    <option name="localTasksCounter" value="19" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -377,7 +385,8 @@
     <MESSAGE value="Number of Object display fixes.&#10;&#10;- Applied mixing of bg/obj FIFOs&#10;- Handles 2 overlapping objects&#10;- flips objects in x/y planes as needed" />
     <MESSAGE value="Small changes from last push." />
     <MESSAGE value="Right-eye visible&#10;&#10;- window tile access fixed." />
-    <option name="LAST_COMMIT_MESSAGE" value="Right-eye visible&#10;&#10;- window tile access fixed." />
+    <MESSAGE value="Fixed window rendering.&#10;&#10;- Implemented the window's internal line counter for correctly accessing it's tilemap row on render&#10;- dmgacid now fully renders correctly :)" />
+    <option name="LAST_COMMIT_MESSAGE" value="Fixed window rendering.&#10;&#10;- Implemented the window's internal line counter for correctly accessing it's tilemap row on render&#10;- dmgacid now fully renders correctly :)" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -389,7 +398,7 @@
         <line-breakpoint enabled="true" type="java-line">
           <condition expression="scanlineXPos == 88 &amp;&amp; scanlineYPos == 112" language="JAVA" />
           <url>file://$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java</url>
-          <line>321</line>
+          <line>323</line>
           <option name="timeStamp" value="94" />
         </line-breakpoint>
       </breakpoints>

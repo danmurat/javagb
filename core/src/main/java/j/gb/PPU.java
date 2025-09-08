@@ -27,6 +27,8 @@ public class PPU {
     private static final int LY_ADDRESS = 0xFF44;
     private static final int LYC_ADDRESS = 0xFF45;
 
+    private static final int WX_SCREEN_ADJUST_AMOUNT = 7; // its relative position on lcd is -7
+
 
     private final int[][] screen = new int[144][160];
 
@@ -43,7 +45,7 @@ public class PPU {
     private boolean ppuDisabled;
 
     private int winInternalLineCounter = 0; // for window
-    private boolean isWinRendered = false; // check per scanline for internalLineCounter increment
+    private boolean wasWinRendered = false; // check per scanline for internalLineCounter increment
 
     private ArrayDeque<Integer> bgFIFO;
     private ArrayDeque<Integer> objFIFO;
@@ -152,9 +154,9 @@ public class PPU {
                 }
 
                 // check windowCounter after rendering whole scanline
-                if (isWinRendered) {
+                if (wasWinRendered) {
                     winInternalLineCounter++;
-                    isWinRendered = false;
+                    wasWinRendered = false;
                 }
 
                 /* mode0 HBlank (lasts for the remaining number of dots left) */
@@ -346,31 +348,25 @@ public class PPU {
             tileMapLocation = 0x9C00;
             if (memory.getLCDCbit5() == 1) {
                 isWindowTile = true;
-                isWinRendered = true; // for winInternalLineCounter
+                wasWinRendered = true; // for winInternalLineCounter
             }
         } else if (memory.getLCDCbit6() == 0 && isWithinWindow(scanlineXPos, scanlineYPos) && memory.getLCDCbit5() == 1) {
             isWindowTile = true;
-            isWinRendered = true;
+            wasWinRendered = true;
         }
 
 
         /*
-        "The fetcher keeps track of which X and Y coordinate of the tile it’s on"
-
-        So fetcher X only cares about where the tile starts on the X plane, so it wants 0-31
-        fetcher Y cares about the actual row of the tile! This wants 0-255.
-        This way we can access the correct byte of tile data.
+        fetcherX/Y are the calculated positions on each tilemap. fetcherX is the whole tile (0-32), whereas
+        fetcherY is the actual pixel amount (0-255).
          */
         int fetcherX, fetcherY;
-        //if (isWindowTile && getWindowY() == winInternalLineCounter) { // what's going wrong with this?
         if (isWindowTile) {
-            // TODO: window X may need to be subtracted by 7!
-            final int WX = getWindowX() - 7; // remember, it can be left off-screen by 7
-            //final int WY = getWindowY(); // not needed
-            final int WXTileNum = WX / 8;
+            final int WXOnScreen = getWindowX() - WX_SCREEN_ADJUST_AMOUNT;
+            final int WXOnScreenTileNum = WXOnScreen / 8;
             final int scanlineXTileNum = scanlineXPos / 8;
-            // the scanX/Y - winX/Y gives us the correct position of how far along a window tilemap we are.
-            fetcherX = (scanlineXTileNum - WXTileNum) & 0x1F;
+            // the scanX - winX gives us the correct position of how far along a window tilemap we are.
+            fetcherX = (scanlineXTileNum - WXOnScreenTileNum) & 0x1F;
             fetcherY = winInternalLineCounter & 255; // how the window selects its tilemap row: https://gbdev.io/pandocs/Scrolling.html
         } else {
             fetcherX = ((getSCX() / 8) + (scanlineXPos / 8)) & 0x1F; // 1F ensures result between 0-31
@@ -548,7 +544,7 @@ public class PPU {
     private boolean isWithinWindow(final int xPos, final int yPos) {
         // PanDocs only says to check against xPos. But this doesn't make sense since the window yPos could be further
         // down. We include the yPos, but keep this comment in case my thinking is wrong.
-        return xPos >= (getWindowX() - 7) && yPos >= getWindowY();
+        return xPos >= (getWindowX() - WX_SCREEN_ADJUST_AMOUNT) && yPos >= getWindowY();
     }
 
     // width = 160 pixels with +/- 8 (the width of each tile). So 0 is off screen, and 168 is too.
@@ -799,17 +795,6 @@ public class PPU {
 
     // like above, this specifies where the start of our window tiles are placed.
     private int getWindowX() {
-        //return memory.readByte(0xFF4B) + 7; // panDocs says this is needed?
-        /*
-        Above is commented out since I think it's causing wrong behavior when attempting to display the
-        right-eye and chin in dmg-acid. Since they're window tiles, we don't seem to be recognising it
-        because our screen position starts out-of-bounds (not within the window tile positions). At x=88, y=40
-        (the start of the right-eye) the WX=102 + WY = 40.
-        The WX relative postion on screen is WX - 7. So when we check if we're within, we get this value, then subtract
-        7. This gives us 95. But, -7 again and it gives us 88.. which lines up with what we think should happen!
-
-        Adding 7 above causes us to have 95, which might be wrong. Hence for commenting it out while we debug.
-         */
         return memory.readByte(0xFF4B);
     }
 
