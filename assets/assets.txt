@@ -1,6 +1,8 @@
 bootup.gif
 dmgac hllwrldFix.png
+dmgacid complete.png
 dmgacid fixedObjSpacing.png
+dmgacid right-eye working.png
 dmgacid spriteAttempt.png
 dmgacid statInterrupt.png
 dmgacid x:y flips.png

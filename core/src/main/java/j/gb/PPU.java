@@ -42,6 +42,9 @@ public class PPU {
 
     private boolean ppuDisabled;
 
+    private int winInternalLineCounter = 0; // for window
+    private boolean isWinRendered = false; // check per scanline for internalLineCounter increment
+
     private ArrayDeque<Integer> bgFIFO;
     private ArrayDeque<Integer> objFIFO;
 
@@ -148,6 +151,12 @@ public class PPU {
                     dots++; //
                 }
 
+                // check windowCounter after rendering whole scanline
+                if (isWinRendered) {
+                    winInternalLineCounter++;
+                    isWinRendered = false;
+                }
+
                 /* mode0 HBlank (lasts for the remaining number of dots left) */
                 setStatMode0(true);
                 memory.setOamAccessible(true);
@@ -168,6 +177,7 @@ public class PPU {
                 setStatMode1(true);
                 cpu.runInstructions(456 / 4, true);
                 setStatMode1(false); // leave for now, since it will just get reset to on for next iteration.
+                winInternalLineCounter = 0; // reset
             }
         }
 
@@ -334,9 +344,13 @@ public class PPU {
             tileMapLocation = 0x9C00;
         } else if (memory.getLCDCbit6() == 1 && isWithinWindow(scanlineXPos, scanlineYPos)) {
             tileMapLocation = 0x9C00;
-            if (memory.getLCDCbit5() == 1) isWindowTile = true;
+            if (memory.getLCDCbit5() == 1) {
+                isWindowTile = true;
+                isWinRendered = true; // for winInternalLineCounter
+            }
         } else if (memory.getLCDCbit6() == 0 && isWithinWindow(scanlineXPos, scanlineYPos) && memory.getLCDCbit5() == 1) {
             isWindowTile = true;
+            isWinRendered = true;
         }
 
 
@@ -348,15 +362,16 @@ public class PPU {
         This way we can access the correct byte of tile data.
          */
         int fetcherX, fetcherY;
+        //if (isWindowTile && getWindowY() == winInternalLineCounter) { // what's going wrong with this?
         if (isWindowTile) {
             // TODO: window X may need to be subtracted by 7!
             final int WX = getWindowX() - 7; // remember, it can be left off-screen by 7
-            final int WY = getWindowY();
+            //final int WY = getWindowY(); // not needed
             final int WXTileNum = WX / 8;
             final int scanlineXTileNum = scanlineXPos / 8;
             // the scanX/Y - winX/Y gives us the correct position of how far along a window tilemap we are.
             fetcherX = (scanlineXTileNum - WXTileNum) & 0x1F;
-            fetcherY = (scanlineYPos - WY) & 255;
+            fetcherY = winInternalLineCounter & 255; // how the window selects its tilemap row: https://gbdev.io/pandocs/Scrolling.html
         } else {
             fetcherX = ((getSCX() / 8) + (scanlineXPos / 8)) & 0x1F; // 1F ensures result between 0-31
             fetcherY = (getSCY() + scanlineYPos) & 255; // y accesses the actual row

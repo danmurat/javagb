@@ -4,10 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="3d99bb93-0256-4e75-8212-af97d2135b8d" name="Changes" comment="Small changes from last push.">
+    <list default="true" id="3d99bb93-0256-4e75-8212-af97d2135b8d" name="Changes" comment="Right-eye visible&#10;&#10;- window tile access fixed.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/CPU.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/CPU.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/Memory.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/Memory.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/assets/assets.txt" beforeDir="false" afterPath="$PROJECT_DIR$/assets/assets.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/core/src/main/java/j/gb/Run.java" beforeDir="false" afterPath="$PROJECT_DIR$/core/src/main/java/j/gb/Run.java" afterDir="false" />
     </list>
@@ -203,7 +202,7 @@
       <workItem from="1755550998925" duration="1688000" />
       <workItem from="1756731489159" duration="13508000" />
       <workItem from="1756982390855" duration="23863000" />
-      <workItem from="1757163329405" duration="9370000" />
+      <workItem from="1757163329405" duration="16056000" />
     </task>
     <task id="LOCAL-00001" summary="Migration to libGDX project setup">
       <option name="closed" value="true" />
@@ -333,7 +332,15 @@
       <option name="project" value="LOCAL" />
       <updated>1757018933664</updated>
     </task>
-    <option name="localTasksCounter" value="17" />
+    <task id="LOCAL-00017" summary="Right-eye visible&#10;&#10;- window tile access fixed.">
+      <option name="closed" value="true" />
+      <created>1757172857140</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1757172857140</updated>
+    </task>
+    <option name="localTasksCounter" value="18" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -369,7 +376,8 @@
     <MESSAGE value="Added Obj row access that is individual to the obj.&#10;&#10;- We were general checking rows of all objs based off the scanline position (y%8/16), but didn't consider if an object was place in any other row (say it starts at row 1 or 5 of a tile)! This is now fixed, so objects should appear as normal no matter where they start." />
     <MESSAGE value="Number of Object display fixes.&#10;&#10;- Applied mixing of bg/obj FIFOs&#10;- Handles 2 overlapping objects&#10;- flips objects in x/y planes as needed" />
     <MESSAGE value="Small changes from last push." />
-    <option name="LAST_COMMIT_MESSAGE" value="Small changes from last push." />
+    <MESSAGE value="Right-eye visible&#10;&#10;- window tile access fixed." />
+    <option name="LAST_COMMIT_MESSAGE" value="Right-eye visible&#10;&#10;- window tile access fixed." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -379,10 +387,10 @@
           <option name="timeStamp" value="30" />
         </breakpoint>
         <line-breakpoint enabled="true" type="java-line">
-          <condition expression="x &gt;= 88 &amp;&amp; y &gt;= 40" language="JAVA" />
+          <condition expression="scanlineXPos == 88 &amp;&amp; scanlineYPos == 112" language="JAVA" />
           <url>file://$PROJECT_DIR$/core/src/main/java/j/gb/PPU.java</url>
-          <line>231</line>
-          <option name="timeStamp" value="92" />
+          <line>321</line>
+          <option name="timeStamp" value="94" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
